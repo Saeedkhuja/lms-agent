@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="uz" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>e-JDU LMS Autonomous AI Agent Dashboard</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+            },
+            darkBg: '#0b0f19',
+            cardBg: '#131b2e',
+            borderGlass: 'rgba(255, 255, 255, 0.08)'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#0b0f19] text-slate-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP NAVBAR -->
+  <header class="sticky top-0 z-40 bg-[#0f172a]/80 backdrop-blur-md border-b border-white/10 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <i class="bi bi-robot text-xl text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="font-bold text-lg text-white tracking-wide">e-JDU AI AGENT</h1>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">v2.0 24/7</span>
+          </div>
+          <p class="text-xs text-slate-400">KnowledgeDeliver LMS Avtonom Robot</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions & Status -->
+      <div class="flex items-center space-x-3">
+        <!-- Live Status Badge -->
+        <div id="statusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs">
+          <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+          <span id="statusText" class="font-semibold text-slate-300 uppercase">STOPPED</span>
+        </div>
+
+        <!-- Start/Stop Controls -->
+        <button id="btnStart" onclick="startAgent()" class="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition-all">
+          <i class="bi bi-play-fill text-base"></i>
+          <span>Ishga tushirish</span>
+        </button>
+
+        <button id="btnStop" onclick="stopAgent()" class="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-rose-600/30 transition-all opacity-50 cursor-not-allowed" disabled>
+          <i class="bi bi-stop-fill text-base"></i>
+          <span>To'xtatish</span>
+        </button>
+
+        <!-- Profile Selector -->
+        <div class="relative hidden sm:block">
+          <select id="quickProfileSelect" onchange="switchProfile(this.value)" class="bg-slate-800 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500">
+            <option value="">Profilni tanlang...</option>
+          </select>
+        </div>
+
+        <!-- Server Connection Button -->
+        <button onclick="openServerConfigModal()" title="Agent Backend URL sozlash" class="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition">
+          <span id="serverStatusDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <i class="bi bi-hdd-network"></i>
+          <span id="serverStatusLabel" class="hidden md:inline">Server</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- REMOTE NOTICE BANNER (when accessed from Cloudflare without API connection) -->
+  <div id="remoteBanner" class="hidden bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-300">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <i class="bi bi-exclamation-triangle-fill text-amber-400"></i>
+        <span>Cloudflare orqali ochildi. Agent bilan bog'lanish uchun backend server / tunnel manzilini kiriting.</span>
+      </div>
+      <button onclick="openServerConfigModal()" class="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-500 text-slate-900 font-bold text-xs">Ulash</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+
+    <!-- STATS CARDS -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-slate-900/60 backdrop-blur border border-white/5 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
+          <span>Faol Talaba</span>
+          <i class="bi bi-person-badge text-indigo-400"></i>
+        </div>
+        <div id="statStudent" class="font-bold text-base sm:text-lg text-white truncate">-</div>
+        <div id="statUserId" class="text-xs text-slate-400 font-mono">-</div>
+      </div>
+
+      <div class="bg-slate-900/60 backdrop-blur border border-white/5 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
+          <span>Joriy Dars</span>
+          <i class="bi bi-play-circle text-emerald-400"></i>
+        </div>
+        <div id="statLesson" class="font-bold text-sm sm:text-base text-white truncate">Kutilmoqda...</div>
+        <div id="statChapter" class="text-xs text-slate-400 truncate">-</div>
+      </div>
+
+      <div class="bg-slate-900/60 backdrop-blur border border-white/5 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
+          <span>Bajarilgan / Qolgan</span>
+          <i class="bi bi-check2-circle text-sky-400"></i>
+        </div>
+        <div class="flex items-baseline space-x-2">
+          <span id="statCompleted" class="font-bold text-lg text-emerald-400">0</span>
+          <span class="text-slate-500 text-xs">/</span>
+          <span id="statRemaining" class="text-slate-400 text-xs font-semibold">0 ta qoldi</span>
+          <span id="progressPercentText" class="text-indigo-400 text-xs font-mono ml-auto">0%</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
+          <div id="progressBar" class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+        <div id="currentActivityText" class="text-[10px] text-slate-400 mt-1 truncate">Kutish holatida</div>
+      </div>
+
+      <div class="bg-slate-900/60 backdrop-blur border border-white/5 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
+          <span>Ish Vaqti (Uptime)</span>
+          <i class="bi bi-clock-history text-purple-400"></i>
+        </div>
+        <div id="statUptime" class="font-bold text-lg text-white font-mono">00:00:00</div>
+        <div class="text-xs text-slate-400">24/7 Monitoring faol</div>
+      </div>
+    </div>
+
+    <!-- MAIN TWO-COLUMN DASHBOARD -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- LEFT: LIVE VIEWPORT & TERMINAL CONSOLE (7 cols) -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- Live Browser Screen Viewport -->
+        <div class="bg-slate-900/60 backdrop-blur border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+          <div class="flex items-center justify-between px-4 py-3 bg-slate-900/80 border-b border-white/5">
+            <div class="flex items-center space-x-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
+              <span class="text-xs text-slate-300 font-medium ml-2 flex items-center">
+                <i class="bi bi-camera-video mr-1.5 text-indigo-400"></i> Jonli Brauzer Ko'rinishi (Live Viewport)
+              </span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span id="liveIndicator" class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse mr-1.5"></span> LIVE
+              </span>
+              <button onclick="toggleFullscreen()" title="Kattalashtirish" class="text-slate-400 hover:text-white p-1 text-xs">
+                <i class="bi bi-arrows-fullscreen"></i>
+              </button>
+            </div>
+          </div>
+
+          <div id="screenContainer" class="relative bg-black flex items-center justify-center min-h-[300px] max-h-[460px] overflow-hidden group">
+            <img id="liveScreen" src="" alt="Browser Live View" class="w-full h-auto object-contain hidden" />
+            <div id="screenPlaceholder" class="text-center p-8 space-y-3">
+              <div class="w-16 h-16 rounded-2xl bg-slate-800/80 border border-white/5 flex items-center justify-center mx-auto text-slate-500">
+                <i class="bi bi-browser-chrome text-3xl"></i>
+              </div>
+              <p class="text-sm text-slate-400 font-medium">Brauzer oynasi kutilmoqda...</p>
+              <p class="text-xs text-slate-500 max-w-xs mx-auto">Agent ishga tushganda, brauzer sahifasining har bir harakati bu yerda real vaqtda jonli ko'rinadi.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal Logs Window -->
+        <div class="bg-slate-900/60 backdrop-blur border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+          <div class="flex items-center justify-between px-4 py-3 bg-slate-900/80 border-b border-white/5">
+            <div class="flex items-center space-x-2">
+              <i class="bi bi-terminal text-indigo-400 text-sm"></i>
+              <span class="text-xs font-semibold text-slate-200">Jarayon Loglari (Console)</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <label class="flex items-center text-[11px] text-slate-400 cursor-pointer">
+                <input type="checkbox" id="chkAutoScroll" checked class="mr-1 rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0"> Auto-scroll
+              </label>
+              <button onclick="clearLogs()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] transition">
+                <i class="bi bi-trash mr-1"></i> Tozalash
+              </button>
+            </div>
+          </div>
+
+          <div id="logConsole" class="p-4 font-mono text-xs text-slate-300 h-64 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
+            <div class="text-slate-500">Tizim tayyor. Loglar shu yerda real vaqtda paydo bo'ladi...</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: CONTROLS, PROFILES & AI TASKS (5 cols) -->
+      <div class="lg:col-span-5 space-y-6">
+
+        <!-- Navigation Tabs -->
+        <div class="bg-slate-900/60 backdrop-blur border border-white/5 rounded-2xl p-1.5 flex space-x-1 text-xs font-medium">
+          <button onclick="switchTab('profiles')" id="tabBtnProfiles" class="flex-1 py-2 rounded-xl text-center transition-all bg-indigo-600 text-white shadow-md">
+            <i class="bi bi-people mr-1"></i> Talabalar
+          </button>
+          <button onclick="switchTab('ai_task')" id="tabBtnAiTask" class="flex-1 py-2 rounded-xl text-center transition-all text-slate-400 hover:text-white">
+            <i class="bi bi-stars mr-1"></i> AI Buyruqlar
+          </button>
+          <button onclick="switchTab('settings')" id="tabBtnSettings" class="flex-1 py-2 rounded-xl text-center transition-all text-slate-400 hover:text-white">
+            <i class="bi bi-sliders mr-1"></i> Sozlamalar
+          </button>
+        </div>
+
+        <!-- TAB 1: PROFILES MANAGEMENT -->
+        <div id="tabProfiles" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-bold text-white flex items-center">
+              <i class="bi bi-person-lines-fill mr-2 text-indigo-400"></i> Talabalar Ro'yxati
+            </h2>
+            <button onclick="openAddProfileModal()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center space-x-1">
+              <i class="bi bi-plus-lg"></i>
+              <span>Yangi Talaba</span>
+            </button>
+          </div>
+
+          <!-- Profiles Cards List -->
+          <div id="profilesList" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- TAB 2: AI TASK & PROMPT DIRECTIVES -->
+        <div id="tabAiTask" class="hidden space-y-4">
+          <div class="bg-slate-900/60 backdrop-blur border border-white/5 rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-bold text-white flex items-center">
+                <i class="bi bi-magic mr-2 text-pink-400"></i> Moslashuvchan AI Buyruqlari
+              </h2>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 font-mono">Gemini Vision & Reasoning</span>
+            </div>
+
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Agentga erkin tilda (o'zbek, yapon yoki ingliz tilida) topshiriq bering. Gemini sahifadagi darslarni tahlil qilib, buyrug'ingizga binoan qaror qabul qiladi.
+            </p>
+
+            <!-- Quick Template Pills -->
+            <div class="space-y-1.5">
+              <label class="text-[11px] font-medium text-slate-400">Tezkor shablonlar:</label>
+              <div class="flex flex-wrap gap-1.5">
+                <button onclick="setPromptTemplate('Barcha darslar va testlarni to\'liq, xatosiz va ketma-ket bajargin.')" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/5 transition">
+                  🎯 Standart (Hammasi)
+                </button>
+                <button onclick="setPromptTemplate('Faqat grammatika va test (Test, テスト) savollarini topib yech, videolarni o\'tkaz.')" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/5 transition">
+                  📝 Faqat Testlar
+                </button>
+                <button onclick="setPromptTemplate('Faqat yangi haftalik darslarni bajar, eskilarga tegma.')" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/5 transition">
+                  ⚡ Faqat Yangi Darslar
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-[11px] font-medium text-slate-300">Maxsus ko'rsatma matni:</label>
+              <textarea id="customTaskInput" rows="4" placeholder="Masalan: Barcha testlarni 100% ball bilan yechgin, videolarni esa tabiiy tezlikda tomosha qil..." class="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-sans"></textarea>
+            </div>
+
+            <button onclick="submitCustomTask()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-semibold text-xs shadow-lg transition">
+              <i class="bi bi-send-check mr-1.5"></i> Buyruqni AI ga yuborish
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3: SYSTEM SETTINGS -->
+        <div id="tabSettings" class="hidden space-y-4">
+          <div class="bg-slate-900/60 backdrop-blur border border-white/5 rounded-2xl p-5 space-y-4">
+            <h2 class="text-sm font-bold text-white flex items-center">
+              <i class="bi bi-gear-fill mr-2 text-indigo-400"></i> Parametrlar & Xavfsizlik
+            </h2>
+
+            <!-- Video Speed -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-300 font-medium">Video Ijro Tezligi:</span>
+                <span id="valSpeed" class="text-indigo-400 font-bold">1.0x</span>
+              </div>
+              <input type="range" id="inputSpeed" min="0.5" max="2.0" step="0.25" value="1.0" oninput="document.getElementById('valSpeed').innerText = this.value + 'x'" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+              <div class="flex justify-between text-[10px] text-slate-500">
+                <span>0.5x (Sekin)</span>
+                <span>1.0x (Tabiiy)</span>
+                <span>1.5x (Tavsiya)</span>
+                <span>2.0x (Tez)</span>
+              </div>
+            </div>
+
+            <!-- Doc Wait Time -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-300 font-medium">Matn/Slaydda Kutish Vaqti:</span>
+                <span id="valDocTime" class="text-indigo-400 font-bold">25 sek</span>
+              </div>
+              <input type="range" id="inputDocTime" min="5" max="120" step="5" value="25" oninput="document.getElementById('valDocTime').innerText = this.value + ' sek'" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            </div>
+
+            <!-- Check Interval -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-300 font-medium">Yangi darslarni tekshirish oralig'i:</span>
+                <span id="valInterval" class="text-indigo-400 font-bold">15 daqiqa</span>
+              </div>
+              <input type="range" id="inputInterval" min="1" max="60" step="1" value="15" oninput="document.getElementById('valInterval').innerText = this.value + ' daqiqa'" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            </div>
+
+            <!-- Gemini Model -->
+            <div class="space-y-1.5">
+              <label class="text-xs text-slate-300 font-medium">Gemini AI Modeli:</label>
+              <select id="selectModel" class="w-full bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500">
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash (Yuqori tezlik va aniqlik)</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                <option value="gemini-flash-latest">Gemini Flash Latest</option>
+              </select>
+            </div>
+
+            <!-- Gemini API Key -->
+            <div class="space-y-1.5">
+              <label class="text-xs text-slate-300 font-medium">Gemini API Kaliti:</label>
+              <div class="relative">
+                <input type="password" id="inputApiKey" class="w-full bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 pr-9">
+                <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-white text-xs">
+                  <i id="eyeIcon" class="bi bi-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Toggles -->
+            <div class="pt-2 space-y-2 border-t border-white/5">
+              <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                <span>Headless Rejim (Ko'rinmas brauzer)</span>
+                <input type="checkbox" id="chkHeadless" checked class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
+              </label>
+
+              <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                <span>Multi-Talaba Ketma-ketligi (Batch Mode)</span>
+                <input type="checkbox" id="chkBatchMode" class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
+              </label>
+            </div>
+
+            <button onclick="saveSystemSettings()" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg transition">
+              <i class="bi bi-check2-circle mr-1.5"></i> Sozlamalarni Saqlash
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ADD / EDIT PROFILE MODAL -->
+  <div id="profileModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-[#131b2e] border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-white/5 pb-3">
+        <h3 id="modalTitle" class="text-base font-bold text-white flex items-center">
+          <i class="bi bi-person-plus mr-2 text-indigo-400"></i> Yangi Talaba Qo'shish
+        </h3>
+        <button onclick="closeProfileModal()" class="text-slate-400 hover:text-white">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="editProfileId" value="">
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Talaba Ismi / Familiyasi:</label>
+          <input type="text" id="profName" placeholder="Masalan: Saidislomxo'ja" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">LMS Login (User ID):</label>
+          <input type="text" id="profUserId" placeholder="Masalan: jdu-226516" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono">
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">LMS Parol:</label>
+          <input type="password" id="profPassword" placeholder="Parol..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Asosiy Kurs Nomi:</label>
+          <input type="text" id="profCourse" value="N3 (2026秋セメスター)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Qo'shimcha Eslatma:</label>
+          <input type="text" id="profNotes" placeholder="Izoh yoki guruh..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div class="pt-1">
+          <label class="flex items-center text-slate-300 cursor-pointer">
+            <input type="checkbox" id="profActive" checked class="mr-2 rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0"> Profil faol (Agent uning darslarini bajarsin)
+          </label>
+        </div>
+      </div>
+
+      <div class="flex space-x-3 pt-2">
+        <button onclick="closeProfileModal()" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition">Bekor qilish</button>
+        <button onclick="saveProfile()" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 transition">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SERVER URL CONFIG MODAL -->
+  <div id="serverModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-[#131b2e] border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-semibold text-white flex items-center space-x-2">
+          <i class="bi bi-hdd-network text-indigo-400"></i>
+          <span>Agent Backend Server URL</span>
+        </h3>
+        <button onclick="closeServerConfigModal()" class="text-slate-400 hover:text-white">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Ushbu veb-sayt Cloudflare Workers orqali dunyoga tarqatilganda, kompyuteringizdagi agent bilan aloqa qilish uchun backend manzilini kiriting (masalan, Cloudflare Tunnel: <code class="text-indigo-300">https://xxx.trycloudflare.com</code> yoki o'z serveringiz IP/domeni). Agar lokal <code class="text-indigo-300">localhost:8000</code> da bo'lsangiz, bo'sh qoldiring.
+      </p>
+      <div>
+        <label class="block text-xs text-slate-300 font-medium mb-1">Backend Server URL:</label>
+        <input type="text" id="customBackendUrlInput" placeholder="Masalan: https://xxx.trycloudflare.com" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono">
+      </div>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="closeServerConfigModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">Bekor qilish</button>
+        <button onclick="saveServerConfigModal()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30">Saqlash & Ulanish</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
