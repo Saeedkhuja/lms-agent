@@ -1,0 +1,50 @@
+/* Custom Dashboard Styles */
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.6);
+}
+
+/* Glassmorphism Card Glows */
+.glass-panel {
+  background: rgba(19, 27, 46, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Status Indicator animations */
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.pulsing-green {
+  animation: pulse-ring 2s infinite cubic-bezier(0.455, 0.03, 0.515, 0.955);
+}
+
+/* Terminal Log syntax coloring */
+.log-info {
+  color: #38bdf8; /* sky-400 */
+}
+.log-warn {
+  color: #fbbf24; /* amber-400 */
+}
+.log-error {
+  color: #f87171; /* red-400 */
+}
+.log-success {
+  color: #34d399; /* emerald-400 */
+}
