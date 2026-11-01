@@ -168,40 +168,45 @@ FAQAT VA FAQAT quyidagi JSON formatida javob bering:
     # LMS AUTOMATION CORE
     # ------------------------------------------------------------------------
     def _worker_loop(self, target_profile_id: Optional[str]):
-        settings = load_settings()
-        profiles = load_profiles()
+        browser = None
+        playwright_ctx = None
+        try:
+            self.log("INFO", "⚙️ Sozlamalar va profillar yuklanmoqda...")
+            settings = load_settings()
+            profiles = load_profiles()
 
-        # Initialize Gemini Client
-        gemini_client = None
-        api_key = settings.get("gemini_api_key", "").strip()
-        if api_key:
-            try:
-                gemini_client = genai.Client(api_key=api_key)
-            except Exception as e:
-                self.log("WARN", f"Gemini API ulashda xatolik: {e}")
+            # Initialize Gemini Client
+            gemini_client = None
+            api_key = settings.get("gemini_api_key", "").strip()
+            if api_key:
+                try:
+                    gemini_client = genai.Client(api_key=api_key)
+                except Exception as e:
+                    self.log("WARN", f"Gemini API ulashda xatolik: {e}")
 
-        # Choose profile(s)
-        profiles_to_run = []
-        if settings.get("batch_mode", False):
-            profiles_to_run = [p for p in profiles if p.get("active", True)]
-        else:
-            if target_profile_id:
-                matched = [p for p in profiles if p["id"] == target_profile_id]
-                profiles_to_run = matched if matched else [profiles[0]]
+            # Choose profile(s)
+            profiles_to_run = []
+            if settings.get("batch_mode", False):
+                profiles_to_run = [p for p in profiles if p.get("active", True)]
             else:
-                active_p = [p for p in profiles if p.get("active", True)]
-                profiles_to_run = active_p[:1] if active_p else [profiles[0]]
+                if target_profile_id:
+                    matched = [p for p in profiles if p.get("id") == target_profile_id]
+                    profiles_to_run = matched if matched else [profiles[0]]
+                else:
+                    active_p = [p for p in profiles if p.get("active", True)]
+                    profiles_to_run = active_p[:1] if active_p else [profiles[0]]
 
-        if not profiles_to_run:
-            self.log("ERROR", "Hech qanday faol profil topilmadi!")
-            self.state = "STOPPED"
-            return
+            if not profiles_to_run:
+                self.log("ERROR", "Hech qanday faol profil topilmadi!")
+                self.state = "STOPPED"
+                return
 
-        self.log("INFO", f"📋 Ishlanadigan profillar: {[p['name'] + ' (' + p['user_id'] + ')' for p in profiles_to_run]}")
+            self.log("INFO", f"📋 Ishlanadigan profillar: {[p.get('name', 'Talaba') + ' (' + p.get('user_id', '') + ')' for p in profiles_to_run]}")
 
-        with sync_playwright() as playwright:
+            self.log("INFO", "🌐 Brauzer (Playwright Chromium) ishga tushirilmoqda...")
+            playwright_ctx = sync_playwright().start()
             headless = settings.get("headless", True)
-            browser: Browser = playwright.chromium.launch(
+            browser = playwright_ctx.chromium.launch(
                 headless=headless,
                 args=[
                     "--no-sandbox",
@@ -228,52 +233,59 @@ FAQAT VA FAQAT quyidagi JSON formatida javob bering:
                     pass
             page.on("dialog", handle_dialog)
 
-            try:
-                while not self.stop_event.is_set():
-                    # Refresh settings periodically
-                    settings = load_settings()
-                    speed = float(settings.get("speed", 1.0))
-                    doc_time = int(settings.get("doc_time", 25))
-                    check_interval_min = int(settings.get("check_interval", 15))
-                    selected_model = settings.get("gemini_model", "gemini-3.8-flash")
-                    custom_prompt = self.custom_task_prompt or settings.get("custom_instructions", "")
+            while not self.stop_event.is_set():
+                # Refresh settings periodically
+                settings = load_settings()
+                speed = float(settings.get("speed", 1.0))
+                doc_time = int(settings.get("doc_time", 25))
+                check_interval_min = int(settings.get("check_interval", 15))
+                selected_model = settings.get("gemini_model", "gemini-3.8-flash")
+                custom_prompt = self.custom_task_prompt or settings.get("custom_instructions", "")
 
-                    for profile in profiles_to_run:
-                        if self.stop_event.is_set():
-                            break
-
-                        self.active_profile = profile
-                        self.log("INFO", f"\n=======================================================")
-                        self.log("INFO", f"👤 Talaba profiliga o'tildi: {profile['name']} ({profile['user_id']})")
-                        self.log("INFO", f"=======================================================")
-
-                        # Run profile session
-                        self._process_profile(page, profile, settings, gemini_client, selected_model, speed, doc_time, custom_prompt)
-
+                for profile in profiles_to_run:
                     if self.stop_event.is_set():
                         break
 
-                    # Standby wait before checking for new lessons
-                    self.state = "STANDBY"
-                    self.log("INFO", f"⏳ Barcha joriy darslar yakunlandi. Yangi darslar {check_interval_min} daqiqadan so'ng tekshiriladi...")
-                    
-                    sleep_remaining = check_interval_min * 60
-                    while sleep_remaining > 0 and not self.stop_event.is_set():
-                        time.sleep(min(3, sleep_remaining))
-                        sleep_remaining -= 3
+                    self.active_profile = profile
+                    self.log("INFO", f"\n=======================================================")
+                    self.log("INFO", f"👤 Talaba profiliga o'tildi: {profile.get('name', '')} ({profile.get('user_id', '')})")
+                    self.log("INFO", f"=======================================================")
 
-            except Exception as e:
-                self.log("ERROR", f"Agent siklida kutilmagan xatolik: {e}")
-                self.state = "ERROR"
-            finally:
+                    # Run profile session
+                    self._process_profile(page, profile, settings, gemini_client, selected_model, speed, doc_time, custom_prompt)
+
+                if self.stop_event.is_set():
+                    break
+
+                # Standby wait before checking for new lessons
+                self.state = "STANDBY"
+                self.log("INFO", f"⏳ Barcha joriy darslar yakunlandi. Yangi darslar {check_interval_min} daqiqadan so'ng tekshiriladi...")
+                
+                sleep_remaining = check_interval_min * 60
+                while sleep_remaining > 0 and not self.stop_event.is_set():
+                    time.sleep(min(3, sleep_remaining))
+                    sleep_remaining -= 3
+
+        except Exception as e:
+            import traceback
+            self.log("ERROR", f"Agent jarayonida xatolik: {e}")
+            self.log("ERROR", traceback.format_exc().strip())
+            self.state = "ERROR"
+        finally:
+            if browser:
                 try:
                     browser.close()
                 except Exception:
                     pass
-                self.state = "STOPPED"
-                self.active_profile = None
-                self.current_lesson = None
-                self.log("INFO", "Agent seansi yakunlandi.")
+            if playwright_ctx:
+                try:
+                    playwright_ctx.stop()
+                except Exception:
+                    pass
+            self.state = "STOPPED"
+            self.active_profile = None
+            self.current_lesson = None
+            self.log("INFO", "Agent seansi yakunlandi.")
 
     def _login(self, page: Page, profile: Dict[str, Any]) -> bool:
         user_id = profile["user_id"]
