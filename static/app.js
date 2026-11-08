@@ -367,6 +367,11 @@ function renderAdminStudents() {
     `;
     container.appendChild(card);
   });
+
+  const fullContainer = document.getElementById("fullStudentsList");
+  if (fullContainer) {
+    fullContainer.innerHTML = container.innerHTML;
+  }
 }
 
 function togglePasswordVisibility(profId, actualPwd) {
