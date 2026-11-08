@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: lms-master-agent
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "./start.sh"
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PORT
+        value: "10000"
+      - key: GITHUB_REPO
+        value: "Saeedkhuja/lms-agent"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: DASHBOARD_URL
+        sync: false

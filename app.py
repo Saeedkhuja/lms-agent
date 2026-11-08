@@ -78,6 +78,11 @@ def get_style_css():
 def get_app_js():
     return FileResponse(os.path.join(STATIC_DIR, "app.js"), media_type="application/javascript")
 
+@app.get("/health")
+@app.get("/ping")
+def health_check():
+    return {"status": "ok", "service": "lms-master-agent", "time": str(os.environ.get("RENDER_EXTERNAL_URL", "local"))}
+
 @app.get("/api/status")
 def get_status():
     return agent_runner.get_status()

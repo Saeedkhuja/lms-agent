@@ -63,7 +63,7 @@ if os.path.exists(ENV_FILE):
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "9273042030:AAEnLAZlZtMphXHu4crzNJoGduR-cbm3yEg").strip()
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
-DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "https://smoking-codes-week-pike.trycloudflare.com").strip()
+DASHBOARD_URL = (os.environ.get("RENDER_EXTERNAL_URL") or os.environ.get("DASHBOARD_URL", "https://smoking-codes-week-pike.trycloudflare.com")).strip()
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "Saeedkhuja/lms-agent").strip()
 
