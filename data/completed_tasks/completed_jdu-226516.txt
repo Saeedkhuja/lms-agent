@@ -1,0 +1,29 @@
+5週➀::語彙リスト(So'zlar ro'yxati)
+5週➀::語彙(Lug'at)
+5週➀::文法リスト(Grammatika ro'yxati)
+5週➀::文法(Grammatika)1
+5週➀::文法(Grammatika)1Test
+5週➀::文法(Grammatika)2
+5週➀::文法(Grammatika)2Test
+5週➀::文法(Grammatika)3
+5週➀::文法(Grammatika)3Test
+1週 ④::1-dars Test
+2週 ④::2-dars Test
+4週 ③::3-dars Test
+5週➀::会話(Suhbat)
+5週②::会話(Suhbat)
+5週②::語彙リスト(So'zlar ro'yxati)
+5週②::語彙(Lug'at)
+5週②::文法(Grammatika)4
+5週②::文法(Grammatika)4Test
+5週②::文法(Grammatika)5
+5週②::文法(Grammatika)5Test
+5週②::文法(Grammatika)6
+5週②::文法(Grammatika)6Test
+5章③::会話(Suhbat)
+5章③::語彙リスト(So'zlar ro'yxati)
+5章③::語彙(Lug'at)
+5章③::文法(Grammatika)7
+5章③::文法(Grammatika)7Test
+5章③::文法(Grammatika)8
+5章③::文法(Grammatika)8Test

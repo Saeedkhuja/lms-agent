@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  lms_agent_web:
+    build: .
+    container_name: lms_agent_web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=8000

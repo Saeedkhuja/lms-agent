@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="uz" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>e-JDU LMS — Autonomous AI Multi-Student Platform</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cyberDark: '#02070A',
+            cyberSurface: '#061219',
+            cyberElevated: '#0a1c27',
+            cyberCyan: '#0297DE',
+            cyberCoral: '#FC734D',
+            cyberGreen: '#05D686'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="selection:bg-[#0297DE] selection:text-white pb-16">
+
+  <!-- ======================================================================
+       1. TOP PLATFORM NAVBAR
+       ====================================================================== -->
+  <header class="sticky top-0 z-40 tech-header px-4 lg:px-8 py-3.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & View Switcher -->
+      <div class="flex items-center space-x-6">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="switchMainView('admin')">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0297DE] to-[#FC734D] flex items-center justify-center shadow-lg shadow-[#0297DE]/25 border border-white/20">
+            <i class="bi bi-cpu-fill text-xl text-white"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h1 class="font-bold text-base tracking-wide text-white">e-JDU AI AGENT</h1>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#0297DE]/20 text-[#0297DE] border border-[#0297DE]/30">v3.0 MULTI</span>
+            </div>
+            <p class="text-[11px] text-[#8FAEC0]">KnowledgeDeliver LMS 24/7 Platform</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="hidden md:flex items-center space-x-1 bg-[#061219] p-1 rounded-xl border border-[rgba(2,151,222,0.2)]">
+          <button id="navBtnAdmin" onclick="switchMainView('admin')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-[#0297DE] text-white shadow-md">
+            <i class="bi bi-grid-1x2-fill mr-1.5"></i> Boshqaruv Paneli
+          </button>
+          <button id="navBtnCabin" onclick="openStudentCabin(null)" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-[#8FAEC0] hover:text-white">
+            <i class="bi bi-person-workspace mr-1.5"></i> Talabalar Kabineti
+          </button>
+        </nav>
+      </div>
+
+      <!-- Center Status Badge -->
+      <div class="order-3 sm:order-2 w-full sm:w-auto flex justify-center">
+        <div id="platformStatusBadge" class="badge-cyan flex items-center space-x-2 py-1 px-3.5 shadow-md">
+          <span id="platformStatusDot" class="w-2.5 h-2.5 rounded-full bg-[#0297DE]"></span>
+          <span id="platformStatusText" class="uppercase tracking-wider text-[11px]">AGENT STANDBY</span>
+        </div>
+      </div>
+
+      <!-- Action Controls -->
+      <div class="order-2 sm:order-3 flex items-center space-x-2.5 ml-auto sm:ml-0">
+        <!-- Start/Stop Global Buttons -->
+        <button id="btnGlobalStart" onclick="startGlobalAgent()" class="btn-cyan text-xs py-2 px-3.5">
+          <i class="bi bi-play-fill text-base"></i>
+          <span class="hidden sm:inline">Boshlash</span>
+        </button>
+
+        <button id="btnGlobalStop" onclick="stopGlobalAgent()" class="btn-coral text-xs py-2 px-3.5 opacity-50 cursor-not-allowed" disabled>
+          <i class="bi bi-stop-fill text-base"></i>
+          <span class="hidden sm:inline">To'xtatish</span>
+        </button>
+
+        <!-- GitHub Actions Guide -->
+        <button onclick="openGithubModal()" title="GitHub Actions 24/7 Sozlamalari" class="btn-ghost text-xs py-2 px-3 border-[#0297DE]/30 text-[#0297DE]">
+          <i class="bi bi-github text-sm"></i>
+          <span class="hidden lg:inline text-[11px]">GitHub 24/7</span>
+        </button>
+
+        <!-- Settings Button -->
+        <button onclick="openSettingsModal()" title="Tizim Sozlamalari" class="btn-ghost text-xs p-2 text-[#8FAEC0] hover:text-white">
+          <i class="bi bi-gear text-sm"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ======================================================================
+       2. MAIN CONTENT WRAPPER
+       ====================================================================== -->
+  <main class="max-w-7xl mx-auto px-4 lg:px-8 py-6">
+
+    <!-- ==================================================================
+         VIEW 1: ADMIN CONTROL PANEL
+         ================================================================== -->
+    <div id="viewAdmin" class="space-y-6">
+
+      <!-- KPI METRIC CARDS -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <!-- Total Students -->
+        <div class="tech-card p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[#8FAEC0] text-xs mb-3">
+            <span class="font-medium">Jami Talabalar</span>
+            <div class="w-7 h-7 rounded-lg bg-[#0297DE]/15 flex items-center justify-center text-[#0297DE]">
+              <i class="bi bi-people-fill text-sm"></i>
+            </div>
+          </div>
+          <div>
+            <div id="statTotalStudents" class="font-bold text-2xl text-white">0</div>
+            <div class="text-[11px] text-[#8FAEC0] mt-0.5">Faol profillar ro'yxati</div>
+          </div>
+        </div>
+
+        <!-- Active Agents -->
+        <div class="tech-card p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[#8FAEC0] text-xs mb-3">
+            <span class="font-medium">Agent Holati</span>
+            <div class="w-7 h-7 rounded-lg bg-[#05D686]/15 flex items-center justify-center text-[#05D686]">
+              <i class="bi bi-robot text-sm"></i>
+            </div>
+          </div>
+          <div>
+            <div id="statActiveAgents" class="font-bold text-xl text-[#05D686]">STANDBY</div>
+            <div id="statActiveStudentName" class="text-[11px] text-[#8FAEC0] mt-0.5 truncate">Kutish rejimida</div>
+          </div>
+        </div>
+
+        <!-- Total Lessons Completed -->
+        <div class="tech-card p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[#8FAEC0] text-xs mb-3">
+            <span class="font-medium">Bajarilgan Darslar</span>
+            <div class="w-7 h-7 rounded-lg bg-[#FC734D]/15 flex items-center justify-center text-[#FC734D]">
+              <i class="bi bi-check2-circle text-sm"></i>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-baseline space-x-2">
+              <span id="statAdminCompleted" class="font-bold text-2xl text-[#FC734D]">0</span>
+              <span class="text-[#4A697D] text-xs">ta dars</span>
+            </div>
+            <div class="text-[11px] text-[#8FAEC0] mt-0.5">Tizimda saqlangan</div>
+          </div>
+        </div>
+
+        <!-- Overall Progress -->
+        <div class="tech-card p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[#8FAEC0] text-xs mb-3">
+            <span class="font-medium">Navbatdagi Vazifa</span>
+            <div class="w-7 h-7 rounded-lg bg-[#0297DE]/15 flex items-center justify-center text-[#0297DE]">
+              <i class="bi bi-hourglass-split text-sm"></i>
+            </div>
+          </div>
+          <div>
+            <div id="statCurrentLessonAdmin" class="font-bold text-sm text-white truncate">Kutilmoqda...</div>
+            <div id="statCurrentChapterAdmin" class="text-[11px] text-[#8FAEC0] truncate mt-0.5">-</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TWO-COLUMN DASHBOARD (Students Table & Central Logs) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT: STUDENTS MANAGEMENT (7 cols) -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center">
+                <i class="bi bi-people mr-2 text-[#0297DE]"></i> Talabalar Boshqaruvi
+              </h2>
+              <span id="badgeStudentCount" class="badge-cyan text-[10px] py-0 px-2">0 ta</span>
+            </div>
+            <button onclick="openAddProfileModal()" class="btn-cyan text-xs py-1.5 px-3">
+              <i class="bi bi-person-plus-fill"></i>
+              <span>Yangi Talaba</span>
+            </button>
+          </div>
+
+          <!-- Students Cards List -->
+          <div id="adminStudentsList" class="space-y-3">
+            <!-- Dynamically populated via app.js -->
+          </div>
+        </div>
+
+        <!-- RIGHT: STRUCTURED CENTRAL LOGS (5 cols) -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center">
+              <i class="bi bi-terminal-fill mr-2 text-[#FC734D]"></i> Jarayon Loglari (Console)
+            </h2>
+            <div class="flex items-center space-x-2 text-xs">
+              <label class="flex items-center text-[11px] text-[#8FAEC0] cursor-pointer select-none">
+                <input type="checkbox" id="chkAutoScroll" checked class="mr-1 rounded bg-[#061219] border-[#0297DE]/30 text-[#0297DE] focus:ring-0"> Auto
+              </label>
+              <button onclick="clearLogs()" class="btn-ghost py-1 px-2.5 text-[11px]">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Log Filter Bar -->
+          <div class="flex items-center space-x-1 bg-[#061219] p-1 rounded-xl border border-[rgba(2,151,222,0.15)] text-[11px]">
+            <button onclick="setLogFilter('ALL')" id="filterBtnALL" class="flex-1 py-1 rounded-lg text-center font-medium bg-[#0297DE] text-white">Hammasi</button>
+            <button onclick="setLogFilter('AI')" id="filterBtnAI" class="flex-1 py-1 rounded-lg text-center font-medium text-[#8FAEC0] hover:text-white">🧠 AI</button>
+            <button onclick="setLogFilter('INFO')" id="filterBtnINFO" class="flex-1 py-1 rounded-lg text-center font-medium text-[#8FAEC0] hover:text-white">INFO</button>
+            <button onclick="setLogFilter('WARN')" id="filterBtnWARN" class="flex-1 py-1 rounded-lg text-center font-medium text-[#8FAEC0] hover:text-white">OGOH</button>
+            <button onclick="setLogFilter('ERROR')" id="filterBtnERROR" class="flex-1 py-1 rounded-lg text-center font-medium text-[#8FAEC0] hover:text-white">XATO</button>
+          </div>
+
+          <!-- Tech Console Area -->
+          <div class="tech-console p-3.5 h-[520px] overflow-y-auto space-y-1.5" id="logConsole">
+            <div class="text-[#4A697D]">Tizim tayyor. Loglar shu yerda real vaqtda paydo bo'ladi...</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ==================================================================
+         VIEW 2: STUDENT INDIVIDUAL CABIN (Shaxsiy Kabinet)
+         ================================================================== -->
+    <div id="viewStudentCabin" class="hidden space-y-6">
+      
+      <!-- Cabin Breadcrumb & Switcher -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-[#061219] p-3 rounded-2xl border border-[rgba(2,151,222,0.2)]">
+        <button onclick="switchMainView('admin')" class="btn-ghost text-xs py-1.5 px-3">
+          <i class="bi bi-arrow-left mr-1"></i> Boshqaruv Paneliga Qaytish
+        </button>
+
+        <div class="flex items-center space-x-3">
+          <span class="text-xs text-[#8FAEC0]">Talaba almashish:</span>
+          <select id="cabinStudentSelect" onchange="openStudentCabin(this.value)" class="tech-input text-xs py-1.5 px-3 bg-[#0a1c27] text-white cursor-pointer">
+            <!-- Populated via app.js -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Student Profile Header Banner -->
+      <div class="tech-card p-6 border-l-4 border-l-[#0297DE] flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-4">
+          <div id="cabinStudentAvatar" class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0297DE] to-[#FC734D] flex items-center justify-center font-bold text-white text-xl shadow-lg shadow-[#0297DE]/25 border border-white/20">
+            S
+          </div>
+          <div>
+            <div class="flex items-center space-x-3">
+              <h2 id="cabinStudentName" class="text-xl font-bold text-white">-</h2>
+              <span id="cabinStatusBadge" class="badge-cyan text-xs">STANDBY</span>
+            </div>
+            <div class="flex items-center space-x-3 text-xs text-[#8FAEC0] font-mono mt-1">
+              <span>LMS ID: <strong id="cabinStudentUserId" class="text-[#0297DE] font-semibold">-</strong></span>
+              <span class="text-[#4A697D]">•</span>
+              <span>Kurs: <strong id="cabinStudentCourse" class="text-white font-sans font-medium">-</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Specific Action Controls -->
+        <div class="flex items-center space-x-3">
+          <button id="btnCabinStart" onclick="startCabinStudent()" class="btn-cyan text-xs py-2.5 px-5 shadow-lg">
+            <i class="bi bi-play-fill text-lg"></i>
+            <span>Darslarni Boshlash</span>
+          </button>
+          <button id="btnCabinStop" onclick="stopCabinStudent()" class="btn-coral text-xs py-2.5 px-5 opacity-50 cursor-not-allowed" disabled>
+            <i class="bi bi-stop-fill text-lg"></i>
+            <span>To'xtatish</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Minute-by-Minute Telemetry Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <!-- Card 1: Current Lesson & Chapter -->
+        <div class="tech-card p-4">
+          <div class="flex items-center justify-between text-[#8FAEC0] text-xs mb-2">
+            <span>Ayni Paytdagi Dars</span>
+            <i class="bi bi-play-circle text-[#0297DE]"></i>
+          </div>
+          <div id="cabinCurrentLesson" class="font-bold text-sm text-white truncate">Kutilmoqda...</div>
+          <div id="cabinCurrentChapter" class="text-[11px] text-[#8FAEC0] truncate mt-0.5">-</div>
+        </div>
+
+        <!-- Card 2: Progress Percent -->
+        <div class="tech-card p-4">
+          <div class="flex items-center justify-between text-[#8FAEC0] text-xs mb-2">
+            <span>Bajarilgan / Jami</span>
+            <i class="bi bi-check2-all text-[#05D686]"></i>
+          </div>
+          <div class="flex items-baseline justify-between mb-1">
+            <div class="flex items-baseline space-x-1.5">
+              <span id="cabinCompletedCount" class="font-bold text-lg text-[#05D686]">0</span>
+              <span class="text-[#4A697D] text-xs">/</span>
+              <span id="cabinTotalUnits" class="text-[#8FAEC0] text-xs">0 ta</span>
+            </div>
+            <span id="cabinProgressPct" class="text-[#0297DE] font-bold text-xs font-mono">0%</span>
+          </div>
+          <div class="w-full bg-[#0a1c27] rounded-full h-1.5 overflow-hidden">
+            <div id="cabinProgressBar" class="bg-gradient-to-r from-[#0297DE] to-[#05D686] h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Card 3: Current Activity -->
+        <div class="tech-card p-4">
+          <div class="flex items-center justify-between text-[#8FAEC0] text-xs mb-2">
+            <span>Jarayon Harakati</span>
+            <i class="bi bi-activity text-[#FC734D]"></i>
+          </div>
+          <div id="cabinCurrentActivity" class="font-bold text-xs text-[#FC734D] truncate">Kutish holatida</div>
+          <div class="text-[11px] text-[#8FAEC0] mt-0.5 truncate">Daqiqalik monitoring</div>
+        </div>
+
+        <!-- Card 4: Last Heartbeat / Minute -->
+        <div class="tech-card p-4">
+          <div class="flex items-center justify-between text-[#8FAEC0] text-xs mb-2">
+            <span>So'nggi Yangilanish</span>
+            <i class="bi bi-clock-history text-[#8FAEC0]"></i>
+          </div>
+          <div id="cabinLastMinute" class="font-bold text-base text-white font-mono">-</div>
+          <div id="cabinLastUpdated" class="text-[10px] text-[#8FAEC0] truncate mt-0.5">-</div>
+        </div>
+
+      </div>
+
+      <!-- TWO-COLUMN CABIN: Filtered Logs & Completed History -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- LEFT: Cabin Filtered Logs (7 cols) -->
+        <div class="lg:col-span-7 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center">
+              <i class="bi bi-terminal mr-2 text-[#0297DE]"></i> Ushbu Talaba Jarayon Loglari
+            </h3>
+            <span class="text-[11px] text-[#8FAEC0] font-mono">Real-time Stream</span>
+          </div>
+          <div id="cabinLogConsole" class="tech-console p-3.5 h-[420px] overflow-y-auto space-y-1.5">
+            <div class="text-[#4A697D]">Ushbu talaba uchun loglar kutilmoqda...</div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Completed Lessons History (5 cols) -->
+        <div class="lg:col-span-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center">
+              <i class="bi bi-journal-check mr-2 text-[#05D686]"></i> Bajarilgan Darslar Tarixi
+            </h3>
+            <span id="cabinHistoryBadge" class="badge-green text-[10px] py-0 px-2">0 ta</span>
+          </div>
+          
+          <div id="cabinHistoryList" class="tech-card p-3 h-[420px] overflow-y-auto space-y-2">
+            <div class="text-xs text-[#8FAEC0] text-center p-4">Bajarilgan darslar topilmadi</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ======================================================================
+       3. MODALS
+       ====================================================================== -->
+
+  <!-- Add / Edit Profile Modal -->
+  <div id="profileModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="tech-card bg-[#061219] max-w-md w-full p-6 space-y-4 shadow-2xl border border-[rgba(2,151,222,0.3)]">
+      <div class="flex items-center justify-between border-b border-[rgba(2,151,222,0.15)] pb-3">
+        <h3 id="modalTitle" class="text-base font-bold text-white flex items-center">
+          <i class="bi bi-person-plus mr-2 text-[#0297DE]"></i> Yangi Talaba Qo'shish
+        </h3>
+        <button onclick="closeProfileModal()" class="text-[#8FAEC0] hover:text-white">
+          <i class="bi bi-x-lg text-sm"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="editProfileId" value="">
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-[#8FAEC0] font-medium mb-1">Talaba Ismi / Familiyasi:</label>
+          <input type="text" id="profName" placeholder="Masalan: Saidislomxo'ja" class="w-full tech-input">
+        </div>
+
+        <div>
+          <label class="block text-[#8FAEC0] font-medium mb-1">LMS Login (User ID):</label>
+          <input type="text" id="profUserId" placeholder="jdu-226516" class="w-full tech-input font-mono">
+        </div>
+
+        <div>
+          <label class="block text-[#8FAEC0] font-medium mb-1">LMS Parol:</label>
+          <input type="password" id="profPassword" placeholder="Parol..." class="w-full tech-input">
+        </div>
+
+        <div>
+          <label class="block text-[#8FAEC0] font-medium mb-1">Kurs Nomi:</label>
+          <input type="text" id="profCourse" value="N3 (2026秋セメスター)" class="w-full tech-input">
+        </div>
+
+        <div>
+          <label class="block text-[#8FAEC0] font-medium mb-1">Qo'shimcha Eslatma:</label>
+          <input type="text" id="profNotes" placeholder="Izoh yoki guruh..." class="w-full tech-input">
+        </div>
+
+        <div class="pt-1 flex items-center justify-between">
+          <span class="text-[#8FAEC0] font-medium">Profil faol (Agent darslarni bajarsin):</span>
+          <input type="checkbox" id="profActive" checked class="w-4 h-4 rounded bg-[#0a1c27] border-[#0297DE]/30 text-[#0297DE] focus:ring-0">
+        </div>
+      </div>
+
+      <div class="flex space-x-3 pt-3">
+        <button onclick="closeProfileModal()" class="flex-1 btn-ghost text-xs py-2">Bekor qilish</button>
+        <button onclick="saveProfile()" class="flex-1 btn-cyan text-xs py-2">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Settings Modal -->
+  <div id="settingsModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="tech-card bg-[#061219] max-w-lg w-full p-6 space-y-4 shadow-2xl border border-[rgba(2,151,222,0.3)]">
+      <div class="flex items-center justify-between border-b border-[rgba(2,151,222,0.15)] pb-3">
+        <h3 class="text-base font-bold text-white flex items-center">
+          <i class="bi bi-gear-fill mr-2 text-[#0297DE]"></i> Tizim & AI Parametrlari
+        </h3>
+        <button onclick="closeSettingsModal()" class="text-[#8FAEC0] hover:text-white">
+          <i class="bi bi-x-lg text-sm"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        
+        <!-- Gemini Model Selection -->
+        <div>
+          <label class="block text-[#8FAEC0] font-medium mb-1">Gemini AI Modeli:</label>
+          <select id="selectModel" class="w-full tech-input cursor-pointer">
+            <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (O'ta tezkor & tavsiya etiladi)</option>
+            <option value="gemini-3.8-flash">Gemini 3.8 Flash (Yuqori intellekt)</option>
+            <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+            <option value="gemini-flash-latest">Gemini Flash Latest</option>
+          </select>
+        </div>
+
+        <!-- Gemini API Key -->
+        <div>
+          <label class="block text-[#8FAEC0] font-medium mb-1">Gemini API Kaliti (aistudio.google.com):</label>
+          <div class="relative">
+            <input type="password" id="inputApiKey" placeholder="API key..." class="w-full tech-input font-mono pr-9">
+            <button type="button" onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-[#8FAEC0] hover:text-white">
+              <i id="eyeIcon" class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Speed & Sliders -->
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <div>
+            <div class="flex justify-between text-[#8FAEC0] mb-1">
+              <span>Video Tezligi:</span>
+              <span id="valSpeed" class="text-[#0297DE] font-bold">2.0x</span>
+            </div>
+            <input type="range" id="inputSpeed" min="0.5" max="2.0" step="0.25" value="2.0" oninput="document.getElementById('valSpeed').innerText = this.value + 'x'" class="w-full accent-[#0297DE]">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[#8FAEC0] mb-1">
+              <span>Matnda Kutish:</span>
+              <span id="valDocTime" class="text-[#0297DE] font-bold">5 sek</span>
+            </div>
+            <input type="range" id="inputDocTime" min="5" max="60" step="5" value="5" oninput="document.getElementById('valDocTime').innerText = this.value + ' sek'" class="w-full accent-[#0297DE]">
+          </div>
+        </div>
+
+        <!-- Checkboxes -->
+        <div class="pt-2 space-y-2 border-t border-[rgba(2,151,222,0.1)]">
+          <label class="flex items-center justify-between text-[#8FAEC0] cursor-pointer">
+            <span>Headless Rejim (Ko'rinmas fonda ishlash):</span>
+            <input type="checkbox" id="chkHeadless" checked class="w-4 h-4 rounded bg-[#0a1c27] border-[#0297DE]/30 text-[#0297DE] focus:ring-0">
+          </label>
+
+          <label class="flex items-center justify-between text-[#8FAEC0] cursor-pointer">
+            <span>Multi-Talaba Ketma-ketligi (Batch Mode):</span>
+            <input type="checkbox" id="chkBatchMode" class="w-4 h-4 rounded bg-[#0a1c27] border-[#0297DE]/30 text-[#0297DE] focus:ring-0">
+          </label>
+        </div>
+
+      </div>
+
+      <div class="flex space-x-3 pt-3">
+        <button onclick="closeSettingsModal()" class="flex-1 btn-ghost text-xs py-2">Bekor qilish</button>
+        <button onclick="saveSystemSettings()" class="flex-1 btn-cyan text-xs py-2">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GitHub Actions Guide Modal -->
+  <div id="githubModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="tech-card bg-[#061219] max-w-lg w-full p-6 space-y-4 shadow-2xl border border-[rgba(2,151,222,0.3)]">
+      <div class="flex items-center justify-between border-b border-[rgba(2,151,222,0.15)] pb-3">
+        <h3 class="text-base font-bold text-white flex items-center">
+          <i class="bi bi-github mr-2 text-[#0297DE]"></i> GitHub Actions 24/7 Avto-Sikl
+        </h3>
+        <button onclick="closeGithubModal()" class="text-[#8FAEC0] hover:text-white">
+          <i class="bi bi-x-lg text-sm"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs text-[#8FAEC0] leading-relaxed">
+        <p>
+          Ushbu loyiha GitHub Public repozitoriyida **24/7 rejimda bepul** ishlash uchun sozlangan.
+        </p>
+
+        <div class="bg-[#030a0f] p-3 rounded-xl border border-[rgba(2,151,222,0.15)] space-y-2">
+          <div class="font-bold text-white flex items-center text-xs">
+            <i class="bi bi-check-circle-fill text-[#05D686] mr-1.5"></i> 6 Soatlik Limit Avto-Zanjiri (Auto-Chaining):
+          </div>
+          <p class="text-[11px]">
+            Bitta run 5.3 soatga yetganda progress avtomatik <code class="text-[#0297DE]">git push</code> qilinadi va keyingi 6 soatlik run avtomatik tarzda qayta boshlanadi.
+          </p>
+        </div>
+
+        <div class="space-y-1">
+          <span class="font-bold text-white">Ishga tushirish qadamlari:</span>
+          <ol class="list-decimal list-inside space-y-1 pl-1 text-[11px]">
+            <li>Kodni o'z GitHub Public repozitoriyingizga push qiling.</li>
+            <li>GitHub repoda <strong>Actions</strong> bo'limiga o'ting.</li>
+            <li><strong>e-JDU LMS AI 24/7 Agent</strong> workflowini tanlang va <strong>Run workflow</strong> tugmasini bosing!</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="closeGithubModal()" class="btn-cyan text-xs py-2 px-5">Tushundim</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
