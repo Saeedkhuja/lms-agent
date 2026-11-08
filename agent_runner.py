@@ -635,23 +635,35 @@ FAQAT quyidagi JSON formatida javob bering:
                         clicked = True
 
                 page.wait_for_timeout(2000)
+                # Dismiss lingering modals before starting
                 self._dismiss_all_modals(page)
                 self.capture_screenshot(page)
 
                 start_btn = page.locator('button:has-text("開始する"), a:has-text("開始する"), [id*="hplStart"]').first
+                target_page = page
                 if start_btn.is_visible():
+                    initial_count = len(page.context.pages)
                     start_btn.click()
+                    page.wait_for_timeout(3000)
+                    if len(page.context.pages) > initial_count:
+                        target_page = page.context.pages[-1]
+                        target_page.bring_to_front()
 
-                page.wait_for_load_state("load", timeout=20000)
-                page.wait_for_timeout(2500)
-                self._dismiss_all_modals(page)
-                self.capture_screenshot(page)
+                target_page.wait_for_load_state("load", timeout=20000)
+                page.wait_for_timeout(2000)
+                self.capture_screenshot(target_page)
 
-                curr_url = page.url
-                if "test2.aspx" in curr_url or "Test" in unit["title"] or "テスト" in unit["title"] or "Quiz" in unit["title"]:
-                    res = self._handle_quiz(page, unit, gemini_client, model_name, custom_prompt)
+                curr_url = target_page.url
+                if "test" in curr_url.lower() or "Test" in unit["title"] or "テスト" in unit["title"] or "Quiz" in unit["title"]:
+                    res = self._handle_quiz(target_page, unit, gemini_client, model_name, custom_prompt)
                 else:
-                    res = self._handle_video_or_doc(page, unit, speed, doc_time)
+                    res = self._handle_video_or_doc(target_page, unit, speed, doc_time)
+
+                if target_page != page:
+                    try:
+                        target_page.close()
+                    except Exception:
+                        pass
 
                 self._dismiss_all_modals(page)
 
@@ -771,11 +783,11 @@ FAQAT quyidagi JSON formatida javob bering:
         self.log("INFO", f"📝 Test darsi AI bilan yechilmoqda: '{unit['title']}'...")
         page.wait_for_timeout(2000)
 
-        for step in range(1, 30):
+        for step in range(1, 45):
             if self.stop_event.is_set():
                 return False
 
-            if "test2.aspx" not in page.url or page.locator('text=受講結果, text=テスト結果').count() > 0:
+            if page.locator('text=受講結果, text=テスト結果, text=テスト完了, text=お疲れさまでした').count() > 0:
                 self.log("INFO", "🎉 Test to'liq yakunlandi!")
                 break
 
