@@ -488,14 +488,10 @@ FAQAT quyidagi JSON formatida javob bering:
     def _expand_chapters(self, page: Page):
         self._dismiss_all_modals(page)
         try:
-            buttons = page.locator('li[id*="liChapter"] button.accordion-button.collapsed').all()
-            for btn in buttons:
-                try:
-                    btn.click()
-                    page.wait_for_timeout(150)
-                except Exception:
-                    pass
-            page.wait_for_timeout(400)
+            page.evaluate('''() => {
+                document.querySelectorAll('li[id*="liChapter"] button.accordion-button.collapsed').forEach(b => b.click());
+            }''')
+            page.wait_for_timeout(2000)
         except Exception:
             pass
         self._dismiss_all_modals(page)
@@ -537,7 +533,7 @@ FAQAT quyidagi JSON formatida javob bering:
         pending = []
         for u in units_data:
             key = f"{u['chapter']}::{u['title']}"
-            if u["isFinished"] or key in completed_set or u["title"] in completed_set:
+            if u["isFinished"] or key in completed_set:
                 continue
             pending.append(u)
 
