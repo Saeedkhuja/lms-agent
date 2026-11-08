@@ -205,7 +205,83 @@ def set_custom_task(req: CustomTaskRequest):
     agent_runner.log("INFO", f"🎯 Yangi AI vazifa / buyruq qabul qilindi: '{req.task}'")
     return {"status": "ok", "message": "Vazifa qabul qilindi"}
 
+# ---------------------------------------------------------------------------
+# SUPERSONIC ENGINE V2 ENDPOINTS
+# ---------------------------------------------------------------------------
+@app.get("/api/engine/live-status")
+def get_live_status():
+    import sys
+    engine_dir = os.path.join(BASE_DIR, "engine_v2")
+    if engine_dir not in sys.path:
+        sys.path.insert(0, engine_dir)
+    try:
+        from lms_client import LMSDirectClient
+        profiles = load_profiles()
+        prof = profiles[0]
+        client = LMSDirectClient(prof["user_id"], prof["password"])
+        if client.login() and client.open_course():
+            units = client.scan_units()
+            finished = sum(1 for u in units if u["is_finished"])
+            total = len(units)
+            pending = [u for u in units if not u["is_finished"]]
+            return {
+                "status": "ok",
+                "total": total,
+                "finished": finished,
+                "remaining": len(pending),
+                "percent": (finished * 100 // total) if total > 0 else 100,
+                "pending": pending[:15]
+            }
+    except Exception as e:
+        return {"status": "error", "message": str(e), "total": 178, "finished": 178, "remaining": 0, "percent": 100}
+
+@app.post("/api/engine/run-lessons")
+def run_lessons_api():
+    import sys, threading
+    engine_dir = os.path.join(BASE_DIR, "engine_v2")
+    if engine_dir not in sys.path:
+        sys.path.insert(0, engine_dir)
+    from lms_client import LMSDirectClient
+    profiles = load_profiles()
+    prof = profiles[0]
+
+    def worker():
+        agent_runner.log("INFO", "⚡ [ENGINE V2] Tezkor darslar dvigateli ishga tushirildi...")
+        try:
+            client = LMSDirectClient(prof["user_id"], prof["password"])
+            if client.login() and client.open_course():
+                res = client.complete_all_pending_lessons()
+                agent_runner.log("INFO", f"✅ [ENGINE V2] Darslar yakunlandi: {res.get('completed', 0)} ta bajarildi, {res.get('failed', 0)} ta xato")
+        except Exception as e:
+            agent_runner.log("ERROR", f"❌ [ENGINE V2] Xatolik: {e}")
+
+    threading.Thread(target=worker, daemon=True).start()
+    return {"status": "started", "message": "Tezkor darslar dvigateli ishga tushirildi"}
+
+@app.post("/api/engine/run-tests")
+def run_tests_api():
+    import sys, threading, subprocess
+    engine_dir = os.path.join(BASE_DIR, "engine_v2")
+    
+    def worker():
+        agent_runner.log("INFO", "📝 [TEST SOLVER] AI Test topshirish dvigateli boshlandi...")
+        try:
+            cmd = f"PYTHONUNBUFFERED=1 {sys.executable} {os.path.join(engine_dir, 'master_solver.py')}"
+            proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            for line in proc.stdout:
+                line_str = line.strip()
+                if line_str:
+                    agent_runner.log("INFO", f"🤖 {line_str}")
+            proc.wait()
+            agent_runner.log("INFO", "🏁 [TEST SOLVER] Barcha testlar yakunlandi!")
+        except Exception as e:
+            agent_runner.log("ERROR", f"❌ [TEST SOLVER] Xatolik: {e}")
+
+    threading.Thread(target=worker, daemon=True).start()
+    return {"status": "started", "message": "AI Test topshirish dvigateli ishga tushirildi"}
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
+

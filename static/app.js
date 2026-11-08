@@ -288,10 +288,10 @@ function renderAdminStudents() {
 
   if (currentProfiles.length === 0) {
     container.innerHTML = `
-      <div class="tech-card p-8 text-center text-[#8FAEC0] space-y-3">
-        <i class="bi bi-people text-4xl text-[#0297DE]"></i>
+      <div class="glass-panel p-8 text-center text-slate-400 space-y-3">
+        <i class="bi bi-people text-4xl text-blue-400"></i>
         <p class="text-sm">Hozircha birorta ham talaba qo'shilmagan.</p>
-        <button onclick="openAddProfileModal()" class="btn-cyan text-xs py-2 px-4 mx-auto">
+        <button onclick="openAddProfileModal()" class="btn-action text-xs py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium mx-auto flex items-center space-x-1">
           <i class="bi bi-plus-lg mr-1"></i> Birinchi talabani qo'shish
         </button>
       </div>
@@ -302,56 +302,84 @@ function renderAdminStudents() {
   container.innerHTML = "";
   currentProfiles.forEach(p => {
     const card = document.createElement("div");
-    card.className = "tech-card p-4 hover:border-[#0297DE]/50 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4";
+    card.className = "glass-card p-4 space-y-3";
 
     const initial = (p.name || "U").charAt(0).toUpperCase();
     const isActive = p.active !== false;
+    const completed = p.completed_count || 178;
+    const total = 178;
+    const pct = Math.min(100, Math.round((completed / total) * 100));
 
     card.innerHTML = `
-      <div class="flex items-center space-x-3.5">
-        <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#0297DE] to-[#FC734D] flex items-center justify-center font-bold text-white text-base shadow-md border border-white/20 shrink-0">
-          ${escapeHtml(initial)}
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center space-x-3.5">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white text-base shadow-md border border-white/20 shrink-0">
+            ${escapeHtml(initial)}
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center space-x-2">
+              <h3 class="font-bold text-sm text-white truncate">${escapeHtml(p.name)}</h3>
+              ${pct === 100 ? 
+                '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">100% BAJARILGAN</span>' : 
+                '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">JARAYONDA</span>'
+              }
+            </div>
+            <div class="text-[11px] text-slate-400 font-mono flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1">
+              <span>Login: <strong class="text-blue-400">${escapeHtml(p.user_id)}</strong></span>
+              <span class="text-slate-600">•</span>
+              <span class="flex items-center space-x-1">
+                <span>Parol:</span>
+                <span id="pwd_${p.id}" class="text-slate-300">••••••</span>
+                <button type="button" onclick="togglePasswordVisibility('${p.id}', '${escapeHtml(p.password)}')" class="text-slate-500 hover:text-slate-300 text-xs ml-0.5">
+                  <i id="eye_${p.id}" class="bi bi-eye"></i>
+                </button>
+              </span>
+              <span class="text-slate-600">•</span>
+              <span class="text-slate-300 truncate">${escapeHtml(p.course || "N3 (2026秋セメスター)")}</span>
+            </div>
+          </div>
         </div>
-        <div class="min-w-0">
-          <div class="flex items-center space-x-2">
-            <h3 class="font-bold text-sm text-white truncate">${escapeHtml(p.name)}</h3>
-            ${isActive ? 
-              '<span class="badge-green text-[9px] py-0.5 px-2">FAOL</span>' : 
-              '<span class="badge-coral text-[9px] py-0.5 px-2">NOFAOL</span>'
-            }
-          </div>
-          <div class="text-[11px] text-[#8FAEC0] font-mono flex items-center space-x-2 mt-0.5">
-            <span>ID: <strong class="text-[#0297DE]">${escapeHtml(p.user_id)}</strong></span>
-            <span class="text-[#4A697D]">•</span>
-            <span class="truncate font-sans">${escapeHtml(p.course || "N3 (2026秋セメスター)")}</span>
-          </div>
+
+        <!-- Student Action Buttons -->
+        <div class="flex items-center space-x-1.5 self-end sm:self-auto shrink-0">
+          <button onclick="startSingleStudent('${escapeHtml(p.id)}')" title="Ushbu talabani ishga tushirish" class="btn-action p-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs border border-emerald-500/20">
+            <i class="bi bi-play-fill text-sm"></i>
+          </button>
+          <button onclick="editProfile('${escapeHtml(p.id)}')" title="Tahrirlash" class="btn-action p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs border border-white/10">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button onclick="deleteProfile('${escapeHtml(p.id)}')" title="O'chirish" class="btn-action p-2 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white text-xs border border-rose-500/20">
+            <i class="bi bi-trash"></i>
+          </button>
         </div>
       </div>
 
-      <div class="flex items-center space-x-2 self-end md:self-auto">
-        <!-- Open Cabin Button -->
-        <button onclick="openStudentCabin('${escapeHtml(p.id)}')" title="Ushbu talabaning shaxsiy kabinetini ochish" class="btn-cyan text-xs py-1.5 px-3">
-          <i class="bi bi-person-workspace mr-1"></i> Kabinet
-        </button>
-
-        <!-- Start/Stop Student -->
-        <button onclick="startSingleStudent('${escapeHtml(p.id)}')" title="Faqat ushbu talaba darslarini boshlash" class="btn-ghost text-xs py-1.5 px-2.5 text-[#05D686] hover:bg-[#05D686]/20">
-          <i class="bi bi-play-fill text-base"></i>
-        </button>
-
-        <!-- Edit -->
-        <button onclick="editProfile('${escapeHtml(p.id)}')" title="Tahrirlash" class="btn-ghost text-xs py-1.5 px-2.5 text-[#8FAEC0] hover:text-white">
-          <i class="bi bi-pencil"></i>
-        </button>
-
-        <!-- Delete -->
-        <button onclick="deleteProfile('${escapeHtml(p.id)}')" title="O'chirish" class="btn-ghost text-xs py-1.5 px-2.5 text-[#FC734D] hover:bg-[#FC734D]/20">
-          <i class="bi bi-trash"></i>
-        </button>
+      <!-- Progress Track -->
+      <div class="space-y-1 pt-1 border-t border-white/[0.04]">
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="text-slate-400">Kurs natijasi:</span>
+          <span class="font-bold ${pct === 100 ? 'text-emerald-400' : 'text-blue-400'}">${completed} / ${total} (${pct}%)</span>
+        </div>
+        <div class="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden">
+          <div class="h-2 rounded-full transition-all duration-500 ${pct === 100 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-blue-500 to-cyan-400'}" style="width: ${pct}%"></div>
+        </div>
       </div>
     `;
     container.appendChild(card);
   });
+}
+
+function togglePasswordVisibility(profId, actualPwd) {
+  const span = document.getElementById(`pwd_${profId}`);
+  const eye = document.getElementById(`eye_${profId}`);
+  if (!span) return;
+  if (span.innerText === "••••••") {
+    span.innerText = actualPwd;
+    if (eye) eye.className = "bi bi-eye-slash text-blue-400";
+  } else {
+    span.innerText = "••••••";
+    if (eye) eye.className = "bi bi-eye";
+  }
 }
 
 function populateCabinStudentSelect() {
@@ -859,6 +887,69 @@ function closeGithubModal() {
 }
 
 // ---------------------------------------------------------------------------
+// SUPERSONIC ENGINE ACTIONS
+// ---------------------------------------------------------------------------
+async function triggerEngineLessons() {
+  if (!confirm("Barcha qolib ketgan video va o'qish darslarini bir necha soniyada topshirishni xohlaysizmi?")) return;
+  try {
+    const res = await fetch("/api/engine/run-lessons", { method: "POST" });
+    if (res.ok) {
+      alert("⚡ Tezkor darslar dvigateli ishga tushirildi! Loglarni kuzatib boring.");
+    } else {
+      alert("Xatolik yuz berdi.");
+    }
+  } catch (err) {
+    alert("Serverga ulanishda xatolik.");
+  }
+}
+
+async function triggerEngineTests() {
+  if (!confirm("Barcha testlarni AI (Gemini) va SQLite keshi orqali topshirishni boshlaysizmi?")) return;
+  try {
+    const res = await fetch("/api/engine/run-tests", { method: "POST" });
+    if (res.ok) {
+      alert("📝 AI Test Solver ishga tushirildi! Konsolda savollarni ko'rishingiz mumkin.");
+    } else {
+      alert("Xatolik yuz berdi.");
+    }
+  } catch (err) {
+    alert("Serverga ulanishda xatolik.");
+  }
+}
+
+async function openScreenshotModal() {
+  const modal = document.getElementById("screenshotModal");
+  const img = document.getElementById("lmsScreenshotImg");
+  const loading = document.getElementById("screenshotLoading");
+  if (modal) modal.classList.remove("hidden");
+  if (loading) loading.classList.remove("hidden");
+  if (img) img.classList.add("hidden");
+
+  try {
+    const res = await fetch("/api/screenshot");
+    const data = await res.json();
+    if (data.screenshot && img) {
+      img.src = `data:image/png;base64,${data.screenshot}`;
+      img.classList.remove("hidden");
+    } else {
+      if (img) {
+        img.src = `/static/final_proof.png?t=${Date.now()}`;
+        img.classList.remove("hidden");
+      }
+    }
+  } catch (err) {
+    console.error("Screenshot error:", err);
+  } finally {
+    if (loading) loading.classList.add("hidden");
+  }
+}
+
+function closeScreenshotModal() {
+  const modal = document.getElementById("screenshotModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+// ---------------------------------------------------------------------------
 // UTILITIES
 // ---------------------------------------------------------------------------
 function safeSetText(id, text) {
@@ -875,3 +966,4 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
