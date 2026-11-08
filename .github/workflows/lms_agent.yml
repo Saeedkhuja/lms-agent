@@ -51,6 +51,7 @@ jobs:
       - name: 🤖 e-JDU AI Agentni Ishga Tushirish (5.3 Soat)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || vars.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || vars.TELEGRAM_BOT_TOKEN }}
         run: |
           PROFILE_ARG=""
           if [ -n "${{ github.event.inputs.profile_id }}" ]; then
