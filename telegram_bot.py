@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-e-JDU LMS — Master Telegram Bot Controller & WebApp Hub
+e-JDU LMS — Master & Student Telegram Controller (Role-Based & Safe Stop)
 =============================================================================
-Ushbu bot barcha Master Dashboard imkoniyatlarini Telegram ichiga olib kiradi:
-  • 🎛️ Master Dashboard (Web App) — Telegram ichida to'liq ochiladi
-  • 🚀 Start / 🛑 Stop Agent — Agentni masofadan boshqarish
-  • 📊 Jonli Monitoring — Darslar progressi, foizlar va joriy holat
-  • 📈 Kurs Tarkibi — Video, Lug'at va Testlar to'liq tahlili
-  • 📸 Jonli Skrinshot — LMS kabinetidan real vaqt fotosurati
-  • ⚡ Tezkor Darslar — HTTP orqali soniyalar ichida darslarni topshirish
-  • 📝 AI Test Solver — Gemini AI orqali testlarni 100% yechish
-  • 👥 Talabalar Bazasi — Barcha o'quvchilar ro'yxati va holati
-  • ➕ Yangi Talaba Qo'shish — Yangi o'quvchi hisobini kiritish
-  • 📋 Konsol Loglari — Real vaqt tizim xabarlari
-  • ☁️ GitHub Actions Cloud Run — Bulutda 24/7 ishga tushirish
-  • ⚙️ Sozlamalar — Tizim konfiguratsiyasi va AI modellari
+Xavfsizlik va Resurslarni Tejash Qoidalari:
+  1. 👑 ADMIN (5099272431): To'liq Master Dashboard (Web App), Talabalar bazasi,
+     sozlamalar, loglar va Cloud Run ga ega.
+  2. 👤 ODDIY USER (Talaba): Faqat shaxsiy kabinet boshqaruvi (Start, Stop,
+     Monitoring, Skrinshot, Darslarni yechish). Admin dashboard va parollar ko'rinmaydi!
+  3. ⚠️ BIR VAQTDA KIRISH HIMOYaSI: Agent darslarni yechayotganda userga e-JDU ga
+     kirmaslik haqida ogohlantirish beriladi (sessiya buzilishining oldi olinadi).
+  4. ⏳ XAVFSIZ TO'XTATISH (Graceful Stop): Stop bosilganda agent joriy darsini
+     oxirigacha yetkazib, saqlab, so'ng to'xtaydi (resurslarni tejaydi).
 =============================================================================
 """
 
@@ -28,7 +24,7 @@ import logging
 import threading
 import requests
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 
 # Setup paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -50,7 +46,7 @@ from lms_client import LMSDirectClient
 from agent_runner import agent_runner
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("MasterTelegramBot")
+logger = logging.getLogger("RoleTelegramBot")
 
 # Load environment variables
 ENV_FILE = os.path.join(BASE_DIR, ".env")
@@ -67,10 +63,23 @@ DASHBOARD_URL = (os.environ.get("RENDER_EXTERNAL_URL") or os.environ.get("DASHBO
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "Saeedkhuja/lms-agent").strip()
 
+# Admin IDs list (default includes primary user: 5099272431)
+raw_admin_ids = os.environ.get("ADMIN_IDS", "5099272431")
+ADMIN_IDS: Set[int] = set()
+for item in raw_admin_ids.split(","):
+    try:
+        ADMIN_IDS.add(int(item.strip()))
+    except ValueError:
+        pass
+
 # User state storage for interactive dialogues
 USER_STATES: Dict[int, str] = {}
 SUBSCRIBERS_FILE = os.path.join(BASE_DIR, "data", "subscribers.json")
 os.makedirs(os.path.join(BASE_DIR, "data"), exist_ok=True)
+
+
+def is_admin(chat_id: int) -> bool:
+    return chat_id in ADMIN_IDS
 
 
 def load_subscribers() -> set:
@@ -163,53 +172,53 @@ def answer_callback_query(callback_query_id: str, text: str = ""):
         pass
 
 
-def setup_telegram_bot_ui():
-    """Botning chat menyusi va komandalarini ro'yxatdan o'tkazish"""
+def configure_chat_menu(chat_id: int):
+    """Admin uchun WebApp menyu tugmasini, oddiy user uchun standart menyuni o'rnatish"""
     try:
-        # 1. Chat Menu button (pastki chap burchakdagi WebApp tugmasi)
-        menu_url = f"{TELEGRAM_API}/setChatMenuButton"
-        menu_payload = {
-            "menu_button": {
-                "type": "web_app",
-                "text": "🎛️ Dashboard",
-                "web_app": {"url": DASHBOARD_URL}
+        if is_admin(chat_id):
+            menu_payload = {
+                "chat_id": chat_id,
+                "menu_button": {
+                    "type": "web_app",
+                    "text": "🎛️ Dashboard",
+                    "web_app": {"url": DASHBOARD_URL}
+                }
             }
-        }
-        requests.post(menu_url, json=menu_payload, timeout=8)
-
-        # 2. Telegram komandalar ro'yxati (/start, /status, etc.)
-        cmd_url = f"{TELEGRAM_API}/setMyCommands"
-        cmd_payload = {
-            "commands": [
-                {"command": "start", "description": "🎛️ Asosiy boshqaruv paneli"},
-                {"command": "dashboard", "description": "🌐 Web App Master Dashboard"},
-                {"command": "status", "description": "📊 Jonli darslar monitoringi"},
-                {"command": "breakdown", "description": "📈 Kurs tarkibi va foizlar"},
-                {"command": "screenshot", "description": "📸 Jonli LMS fotosurati"},
-                {"command": "start_agent", "description": "🚀 Agentni ishga tushirish"},
-                {"command": "stop_agent", "description": "🛑 Agentni to'xtatish"},
-                {"command": "run_lessons", "description": "⚡ Tezkor darslarni yechish"},
-                {"command": "run_tests", "description": "📝 AI test solver (Gemini)"},
-                {"command": "students", "description": "👥 Talabalar ro'yxati"},
-                {"command": "add_student", "description": "➕ Yangi talaba qo'shish"},
-                {"command": "logs", "description": "📋 Konsol loglarini ko'rish"},
-                {"command": "cloud_run", "description": "☁️ GitHub Actions bulutli rejim"},
-                {"command": "settings", "description": "⚙️ Tizim sozlamalari"},
-                {"command": "help", "description": "📖 Qo'llanma va yordam"}
-            ]
-        }
-        requests.post(cmd_url, json=cmd_payload, timeout=8)
-        logger.info("Telegram UI menyulari va komandalari yangilandi.")
-    except Exception as e:
-        logger.warning(f"Telegram menyu o'rnatishda xatolik: {e}")
+        else:
+            menu_payload = {
+                "chat_id": chat_id,
+                "menu_button": {
+                    "type": "default"
+                }
+            }
+        requests.post(f"{TELEGRAM_API}/setChatMenuButton", json=menu_payload, timeout=5)
+    except Exception:
+        pass
 
 
+def get_active_warning() -> str:
+    """Agent ishlayotgan paytda foydalanuvchiga e-JDU ga kirmaslik haqida qat'iy ogohlantirish"""
+    status = agent_runner.get_status()
+    if status.get("is_running", False):
+        current_l = status.get("current_lesson") or "dars"
+        return (
+            f"\n\n⚠️ <b>DIQQAT:</b> Agent hozir <code>{current_l}</code> vazifasini bajarmoqda!\n"
+            "<i>Iltimos, ayni paytda telefon yoki kompyuterdan e-JDU platformasiga kirmang. "
+            "Bir vaqtda kirish sessiyani buzadi va darslar saqlanmay qolishi mumkin.</i>\n"
+        )
+    return ""
+
+
+# -----------------------------------------------------------------------------
+# KEYBOARDS (ADMIN vs USER)
+# -----------------------------------------------------------------------------
 def get_master_keyboard() -> dict:
+    """Faqat Master Admin uchun to'liq boshqaruv paneli"""
     status = agent_runner.get_status()
     is_running = status.get("is_running", False)
 
     start_stop_btn = (
-        {"text": "🛑 Agentni To'xtatish (Stop)", "callback_data": "stop_agent"}
+        {"text": "🛑 To'xtatish (Xavfsiz)", "callback_data": "stop_agent"}
         if is_running else
         {"text": "🚀 Agentni Boshlash (Start)", "callback_data": "start_agent"}
     )
@@ -243,31 +252,69 @@ def get_master_keyboard() -> dict:
                 {"text": "⚙️ Sozlamalar", "callback_data": "settings"}
             ],
             [
-                {"text": "🔄 Yangilash", "callback_data": "refresh"},
-                {"text": "🌐 Brauzerda Ochish", "url": DASHBOARD_URL}
+                {"text": "🔄 Yangilash", "callback_data": "refresh"}
             ]
         ]
     }
 
 
+def get_user_keyboard() -> dict:
+    """Oddiy talabalar uchun shaxsiy, toza boshqaruv paneli (admin tugmalari yopiq)"""
+    status = agent_runner.get_status()
+    is_running = status.get("is_running", False)
+
+    start_stop_btn = (
+        {"text": "🛑 To'xtatish (Darsni tugatib to'xtash)", "callback_data": "stop_agent"}
+        if is_running else
+        {"text": "🚀 Darslarimni Boshlash", "callback_data": "start_agent"}
+    )
+
+    return {
+        "inline_keyboard": [
+            [start_stop_btn],
+            [
+                {"text": "📊 Darslarim Holati", "callback_data": "monitor"},
+                {"text": "📸 Mening LMS Sahifam", "callback_data": "screenshot"}
+            ],
+            [
+                {"text": "⚡ Tezkor Darslarimni Yechish", "callback_data": "run_lessons"}
+            ],
+            [
+                {"text": "🔄 Yangilash", "callback_data": "refresh"}
+            ]
+        ]
+    }
+
+
+def get_keyboard_for(chat_id: int) -> dict:
+    return get_master_keyboard() if is_admin(chat_id) else get_user_keyboard()
+
+
+# -----------------------------------------------------------------------------
+# COMMAND HANDLERS
+# -----------------------------------------------------------------------------
 def handle_start(chat_id: int, user_first_name: str = ""):
     save_subscriber(chat_id)
     USER_STATES.pop(chat_id, None)
+    configure_chat_menu(chat_id)
 
-    welcome_text = f"""👑 <b>Master Admin & Student Command Center</b>
-{f"Assalomu alaykum, <b>{user_first_name}</b>!" if user_first_name else "Assalomu alaykum!"}
+    warning = get_active_warning()
 
-🤖 <b>e-JDU LMS Avtomatlashtirilgan AI Tizimi</b>
-Barcha darslar, testlar, talabalar bazasi va konsol boshqaruvi to'liq integratsiya qilingan.
+    if is_admin(chat_id):
+        welcome_text = f"""👑 <b>Master Admin Command Center</b>
+Assalomu alaykum, <b>{user_first_name or 'Admin'}</b>!
 
-✨ <b>Mavjud Imkoniyatlar:</b>
-• <b>Master Dashboard (Web App)</b> — Zamonaviy Apple HIG paneli to'g'ridan-to'g'ri Telegram ichida
-• <b>Jonli Monitoring & Skrinshot</b> — Kurs holati va LMS sahifasining fotosurati
-• <b>Supersonic Engine</b> — Darslar va testlarni soniyalar ichida yechish
-• <b>Cloud Automation</b> — GitHub Actions orqali 24/7 bulutda uzluksiz ishlash
+🤖 <b>e-JDU LMS Avtomatlashtirilgan Tizimi Boshqaruvi</b>
+Siz Master Admin huquqiga egasiz. Barcha talabalar, darslar, sozlamalar va Web App sizga to'liq ochiq.{warning}
+👇 <i>Boshqaruv menyusi:</i>"""
+        send_message(chat_id, welcome_text, get_master_keyboard())
+    else:
+        welcome_text = f"""👋 <b>Assalomu alaykum{', ' + user_first_name if user_first_name else ''}!</b>
 
-👇 <i>Quyidagi menyudan kerakli bo'limni tanlang:</i>"""
-    send_message(chat_id, welcome_text, get_master_keyboard())
+🎓 <b>e-JDU Shaxsiy Talaba Kabinetiga xush kelibsiz.</b>
+Bu yerda siz darslaringiz holatini kuzatishingiz, avtonom agentni yoqishingiz va skrinshotlarni olishingiz mumkin.{warning}
+👇 <i>Kerakli amalni tanlang:</i>"""
+        send_message(chat_id, welcome_text, get_user_keyboard())
 
 
 def handle_monitor(chat_id: int, message_id: Optional[int] = None):
@@ -276,12 +323,13 @@ def handle_monitor(chat_id: int, message_id: Optional[int] = None):
 
     status = agent_runner.get_status()
     is_running = status.get("is_running", False)
+    is_stopping = status.get("is_stopping", False)
     state = status.get("state", "STOPPED")
 
-    state_emoji = "🟢" if is_running else "🔴"
-    state_uz = "ISHLAMOQDA" if is_running else ("KUTISH REJIMIDA" if state == "STANDBY" else "TO'XTATILGAN")
+    state_emoji = "🟡" if is_stopping else ("🟢" if is_running else "🔴")
+    state_uz = "VAZIFANI TUGATMOQDA..." if is_stopping else ("ISHLAMOQDA" if is_running else ("KUTISH REJIMIDA" if state == "STANDBY" else "TO'XTATILGAN"))
 
-    # LMS Client orqali haqiqiy holatni tekshirish
+    # LMS Client orqali holatni tekshirish
     try:
         client = LMSDirectClient(prof["user_id"], prof["password"])
         if client.login() and client.open_course():
@@ -298,40 +346,27 @@ def handle_monitor(chat_id: int, message_id: Optional[int] = None):
     bars = min(10, max(0, pct // 10))
     progress_bar = "▓" * bars + "░" * (10 - bars)
 
-    msg = f"""<b>📊 JONLI KURS MONITORINGI</b>
+    warning = get_active_warning()
 
-{state_emoji} <b>Agent holati:</b> <code>{state_uz}</code> ({state})
-👤 <b>Faol Talaba:</b> {prof.get('name', 'Saidislomxo\'ja')} (<code>{prof['user_id']}</code>)
+    msg = f"""<b>📊 JONLI KURS MONITORINGI</b>{warning}
+{state_emoji} <b>Holat:</b> <code>{state_uz}</code> ({state})
+👤 <b>Talaba:</b> {prof.get('name', 'Saidislomxo\'ja')} (<code>{prof['user_id']}</code>)
 📚 <b>Kurs:</b> {prof.get('course', 'N3 (2026秋セメスター)')}
 
 📈 <b>Progress:</b> [{progress_bar}] <b>{pct}%</b>
 ✅ <b>Bajarilgan darslar:</b> <code>{finished}</code> / <code>{total}</code> ta
 ⏳ <b>Qolgan darslar:</b> <code>{len(pending)}</code> ta
-🎯 <b>Joriy holat:</b> {('Barcha darslar to\'liq yakunlangan! 🎉' if len(pending) == 0 else f"{len(pending)} ta dars qolgan")}
-⏰ <b>Vaqt:</b> {datetime.now().strftime('%H:%M:%S | %Y-%m-%d')}
+🎯 <b>Joriy dars:</b> {status.get('current_lesson') or ('Barcha darslar to\'liq yakunlangan! 🎉' if len(pending) == 0 else 'Kutish rejimida')}
+⏰ <b>Vaqt:</b> {datetime.now().strftime('%H:%M:%S')}
 """
     if pending:
-        msg += "\n<b>Qolgan darslar ro'yxati:</b>\n"
-        for i, p in enumerate(pending[:5], 1):
-            msg += f"{i}. <code>{p['title']}</code>\n"
-        if len(pending) > 5:
-            msg += f"<i>...va yana {len(pending) - 5} ta dars</i>\n"
+        msg += "\n<b>Qolgan darslar:</b>\n"
+        for i, p in enumerate(pending[:4], 1):
+            msg += f"• <code>{p['title']}</code>\n"
+        if len(pending) > 4:
+            msg += f"<i>...va yana {len(pending) - 4} ta</i>\n"
 
-    keyboard = {
-        "inline_keyboard": [
-            [
-                {"text": "🎛️ Master Dashboard (Web App)", "web_app": {"url": DASHBOARD_URL}}
-            ],
-            [
-                {"text": "📸 Jonli Skrinshot", "callback_data": "screenshot"},
-                {"text": "🔄 Yangilash", "callback_data": "monitor"}
-            ],
-            [
-                {"text": "🔙 Asosiy Menyu", "callback_data": "main_menu"}
-            ]
-        ]
-    }
-
+    keyboard = get_keyboard_for(chat_id)
     if message_id:
         edit_message(chat_id, message_id, msg, keyboard)
     else:
@@ -339,65 +374,72 @@ def handle_monitor(chat_id: int, message_id: Optional[int] = None):
 
 
 def handle_breakdown(chat_id: int):
+    if not is_admin(chat_id):
+        send_message(chat_id, "⛔ Bu bo'lim faqat Admin uchun mo'ljallangan.", get_user_keyboard())
+        return
+
     msg = """<b>📈 KURSNING TO'LIQ TARKIBIY TAHLILI (N3)</b>
 
 🏛️ <b>Platforma:</b> e-JDU Masofaviy Ta'lim
 📚 <b>Kurs:</b> N3 (2026秋セメスター) — <code>id=953</code>
-🎯 <b>Umumiy topshiriqlar soni:</b> 178 ta
+🎯 <b>Jami topshiriqlar:</b> 178 ta
 
 <b>Tarkibiy taqsimot:</b>
 🎬 <b>Video Darslar:</b> 29 / 29 (100%) ✅
 📖 <b>Lug'at & Matn darslari:</b> 138 / 138 (100%) ✅
 📝 <b>Oraliq & Yakuniy Testlar:</b> 11 / 11 (100%) ✅
 ───────────────────
-📊 <b>Umumiy Natija:</b> <b>178 / 178 (100% COMPLETE)</b> 🏆
-
-<i>Barcha dars va testlar to'liq topshirilgan, baholangan va tizimda tasdiqlangan.</i>"""
-
-    keyboard = {
-        "inline_keyboard": [
-            [
-                {"text": "🎛️ Master Dashboard (Web App)", "web_app": {"url": DASHBOARD_URL}}
-            ],
-            [
-                {"text": "📸 LMS Skrinshotini Ko'rish", "callback_data": "screenshot"},
-                {"text": "🔙 Asosiy Menyu", "callback_data": "main_menu"}
-            ]
-        ]
-    }
-    send_message(chat_id, msg, keyboard)
+📊 <b>Umumiy Natija:</b> <b>178 / 178 (100% COMPLETE)</b> 🏆"""
+    send_message(chat_id, msg, get_master_keyboard())
 
 
 def handle_start_agent(chat_id: int):
     status = agent_runner.get_status()
     if status.get("is_running", False):
-        send_message(chat_id, "ℹ️ <i>Agent allaqachon fonda ishlamoqda!</i>", get_master_keyboard())
+        send_message(chat_id, "ℹ️ <i>Agent allaqachon fonda ishlamoqda!</i>" + get_active_warning(), get_keyboard_for(chat_id))
         return
 
     success = agent_runner.start()
     if success:
-        send_message(
-            chat_id,
+        msg = (
             "🚀 <b>Agent muvaffaqiyatli ishga tushirildi!</b>\n"
-            "Darslar monitoringi va topshirish jarayoni faollashtirildi.",
-            get_master_keyboard()
+            "Darslarni bajarish va monitoring jarayoni faollashdi.\n\n"
+            "⚠️ <b>DIQQAT:</b> Agent ishlayotgan paytda telefon yoki kompyuterdan e-JDU ga kirmang! "
+            "Bir vaqtda kirilsa, sessiya uzilib darslar saqlanmay qolishi mumkin."
         )
+        send_message(chat_id, msg, get_keyboard_for(chat_id))
     else:
-        send_message(chat_id, "❌ Agentni ishga tushirishda xatolik yuz berdi.", get_master_keyboard())
+        send_message(chat_id, "❌ Agentni ishga tushirishda xatolik yuz berdi.", get_keyboard_for(chat_id))
 
 
 def handle_stop_agent(chat_id: int):
     status = agent_runner.get_status()
     if not status.get("is_running", False):
-        send_message(chat_id, "ℹ️ <i>Agent allaqachon to'xtatilgan holatda.</i>", get_master_keyboard())
+        send_message(chat_id, "ℹ️ <i>Agent allaqachon to'xtatilgan holatda.</i>", get_keyboard_for(chat_id))
         return
 
-    agent_runner.stop()
-    send_message(chat_id, "🛑 <b>Agent to'xtatildi!</b>", get_master_keyboard())
+    current_task = status.get("current_lesson") or "Joriy dars"
+    # Graceful stop: joriy vazifani to'liq tugatib keyin to'xtatadi
+    agent_runner.stop(force=False)
+
+    msg = f"""⏳ <b>Xavfsiz To'xtatish (Graceful Stop) faollashtirildi!</b>
+
+⚡ <b>Agent hozir bajarayotgan darsini oxirigacha yakunlaydi</b> (<code>{current_task}</code>) va natijasini saqlagach, to'xtaydi.
+Bu orqali resurslar tejaladi va dars chala qolib ketmaydi.
+
+<i>Dars to'liq topshirilishi bilanoq agent to'xtaydi.</i>
+
+💡 <i>Agar zudlik bilan, majburiy to'xtatish kerak bo'lsa: /force_stop buyrug'ini bering.</i>"""
+    send_message(chat_id, msg, get_keyboard_for(chat_id))
+
+
+def handle_force_stop(chat_id: int):
+    agent_runner.stop(force=True)
+    send_message(chat_id, "🛑 <b>Agent zudlik bilan (majburiy) to'xtatildi!</b>", get_keyboard_for(chat_id))
 
 
 def handle_run_lessons(chat_id: int):
-    send_message(chat_id, "⚡ <b>Tezkor Darslar Dvigateli (HTTP Engine) ishga tushirilmoqda...</b>\n<i>Kuting...</i>")
+    send_message(chat_id, "⚡ <b>Tezkor Darslar Dvigateli (HTTP Engine) ishga tushirilmoqda...</b>\n" + get_active_warning())
 
     def worker():
         try:
@@ -412,18 +454,22 @@ def handle_run_lessons(chat_id: int):
                     f"• Bajarildi: <code>{res.get('completed', 0)}</code> ta\n"
                     f"• Xatolik: <code>{res.get('failed', 0)}</code> ta\n"
                     f"• Qolgan: <code>{res.get('remaining', 0)}</code> ta",
-                    get_master_keyboard()
+                    get_keyboard_for(chat_id)
                 )
             else:
-                send_message(chat_id, "❌ LMS tizimiga ulanishda xatolik yuz berdi.", get_master_keyboard())
+                send_message(chat_id, "❌ LMS tizimiga ulanishda xatolik yuz berdi.", get_keyboard_for(chat_id))
         except Exception as e:
-            send_message(chat_id, f"❌ Darslarni topshirishda xatolik: {e}", get_master_keyboard())
+            send_message(chat_id, f"❌ Darslarni topshirishda xatolik: {e}", get_keyboard_for(chat_id))
 
     threading.Thread(target=worker, daemon=True).start()
 
 
 def handle_run_tests(chat_id: int):
-    send_message(chat_id, "📝 <b>AI Test Solver (Gemini) ishga tushirilmoqda...</b>\n<i>Savollar tahlil qilinmoqda...</i>")
+    if not is_admin(chat_id):
+        send_message(chat_id, "⛔ Bu bo'lim faqat Admin uchun.", get_user_keyboard())
+        return
+
+    send_message(chat_id, "📝 <b>AI Test Solver (Gemini) ishga tushirilmoqda...</b>\n" + get_active_warning())
 
     def worker():
         try:
@@ -445,7 +491,7 @@ def handle_run_tests(chat_id: int):
 
 
 def handle_screenshot(chat_id: int):
-    send_message(chat_id, "📸 <i>LMS sahifasidan jonli skrinshot olinmoqda (5-8 soniya)...</i>")
+    send_message(chat_id, "📸 <i>LMS sahifasidan jonli fotosurat olinmoqda (5-8 soniya)...</i>")
 
     def worker():
         shot_path = f"/tmp/lms_shot_{chat_id}_{int(time.time())}.png"
@@ -476,13 +522,13 @@ def handle_screenshot(chat_id: int):
             )
             keyboard = {
                 "inline_keyboard": [
-                    [{"text": "🔄 Yangi Skrinshot Olish", "callback_data": "screenshot"}],
+                    [{"text": "🔄 Yangi Skrinshot", "callback_data": "screenshot"}],
                     [{"text": "🔙 Asosiy Menyu", "callback_data": "main_menu"}]
                 ]
             }
             send_photo(chat_id, shot_path, caption=caption, reply_markup=keyboard)
         except Exception as e:
-            send_message(chat_id, f"❌ Skrinshot olishda xatolik yuz berdi: {e}", get_master_keyboard())
+            send_message(chat_id, f"❌ Skrinshot olishda xatolik yuz berdi: {e}", get_keyboard_for(chat_id))
         finally:
             if os.path.exists(shot_path):
                 try:
@@ -494,6 +540,10 @@ def handle_screenshot(chat_id: int):
 
 
 def handle_students(chat_id: int):
+    if not is_admin(chat_id):
+        send_message(chat_id, "⛔ Talabalar bazasini ko'rish faqat Master Admin uchun ruxsat etilgan.", get_user_keyboard())
+        return
+
     profiles = load_profiles()
     msg = f"<b>👥 TALABALAR BAZASI ({len(profiles)} ta profil)</b>\n\n"
 
@@ -503,9 +553,9 @@ def handle_students(chat_id: int):
         msg += (
             f"<b>{i}. {p.get('name', 'Noma\'lum')}</b> ({status_badge})\n"
             f"   • Login ID: <code>{p['user_id']}</code>\n"
+            f"   • Parol: <code>{p.get('password', '***')}</code>\n"
             f"   • Kurs: <code>{p.get('course', 'N3')}</code>\n"
-            f"   • Bajarilgan vazifalar: <code>{len(completed)}</code> ta\n"
-            f"   • Izoh: <i>{p.get('notes', 'Asosiy')}</i>\n\n"
+            f"   • Bajarilgan: <code>{len(completed)}</code> ta vazifa\n\n"
         )
 
     keyboard = {
@@ -523,6 +573,10 @@ def handle_students(chat_id: int):
 
 
 def prompt_add_student(chat_id: int):
+    if not is_admin(chat_id):
+        send_message(chat_id, "⛔ Talaba qo'shish faqat Admin uchun.", get_user_keyboard())
+        return
+
     USER_STATES[chat_id] = "WAITING_ADD_STUDENT"
     msg = """<b>➕ YANGI TALABA PROFILI QO'SHISH</b>
 
@@ -558,7 +612,6 @@ def process_add_student_text(chat_id: int, text: str):
     course = parts[3] if len(parts) > 3 else "N3 (2026秋セメスター)"
 
     profiles = load_profiles()
-    # Check if user already exists
     existing = next((p for p in profiles if p["user_id"] == user_id), None)
     if existing:
         existing["password"] = password
@@ -578,11 +631,14 @@ def process_add_student_text(chat_id: int, text: str):
         }
         profiles.append(new_prof)
         save_profiles(profiles)
-        agent_runner.log("INFO", f"➕ Telegram bot orqali yangi talaba qo'shildi: {name} ({user_id})")
         send_message(chat_id, f"✅ <b>Yangi talaba muvaffaqiyatli qo'shildi:</b>\n👤 <b>{name}</b> (<code>{user_id}</code>)\n📚 Kurs: {course}", get_master_keyboard())
 
 
 def handle_logs(chat_id: int, message_id: Optional[int] = None):
+    if not is_admin(chat_id):
+        send_message(chat_id, "⛔ Loglarni ko'rish faqat Admin uchun.", get_user_keyboard())
+        return
+
     logs = agent_runner.get_logs()
     recent_logs = logs[-12:] if len(logs) > 12 else logs
 
@@ -595,18 +651,12 @@ def handle_logs(chat_id: int, message_id: Optional[int] = None):
         log_text = "<pre>" + "\n".join(log_lines) + "</pre>"
 
     msg = f"<b>📋 TIZIM KONSOL LOGLARI</b>\n\n{log_text}"
-
     keyboard = {
         "inline_keyboard": [
-            [
-                {"text": "🔄 Loglarni Yangilash", "callback_data": "logs"}
-            ],
-            [
-                {"text": "🔙 Asosiy Menyu", "callback_data": "main_menu"}
-            ]
+            [{"text": "🔄 Loglarni Yangilash", "callback_data": "logs"}],
+            [{"text": "🔙 Asosiy Menyu", "callback_data": "main_menu"}]
         ]
     }
-
     if message_id:
         edit_message(chat_id, message_id, msg, keyboard)
     else:
@@ -614,6 +664,10 @@ def handle_logs(chat_id: int, message_id: Optional[int] = None):
 
 
 def handle_cloud_run(chat_id: int):
+    if not is_admin(chat_id):
+        send_message(chat_id, "⛔ Bulutli ishga tushirish faqat Admin uchun.", get_user_keyboard())
+        return
+
     send_message(chat_id, "☁️ <b>GitHub Actions bulutida ishga tushirish so'rovi yuborilmoqda...</b>")
 
     def worker():
@@ -628,9 +682,8 @@ def handle_cloud_run(chat_id: int):
                 msg = (
                     "☁️ <b>GitHub Actions Bulutli Agent Ishga Tushirildi!</b>\n\n"
                     f"📦 Repozitoriy: <code>{GITHUB_REPO}</code>\n"
-                    "⚙️ Workflow: <code>lms_agent.yml</code>\n"
-                    "⚡ Holat: GitHub serverlarida 24/7 rejimda mustaqil ishlaydi (noutbukni o'chirib qo'ysangiz ham to'xtamaydi).\n\n"
-                    "🔗 <i>Workflow natijalarini GitHub Actions bo'limida kuzatishingiz mumkin.</i>"
+                    "⚡ <b>Holat:</b> GitHub serverlarida 24/7 rejimda mustaqil ishlaydi (noutbuk o'chirilgan bo'lsa ham).\n\n"
+                    "🔗 <i>Workflow natijalarini GitHub Actions sahifasida kuzatishingiz mumkin.</i>"
                 )
                 keyboard = {
                     "inline_keyboard": [
@@ -640,7 +693,7 @@ def handle_cloud_run(chat_id: int):
                 }
                 send_message(chat_id, msg, keyboard)
             else:
-                send_message(chat_id, f"❌ GitHub API xatoligi: {r.status_code} - {r.text}", get_master_keyboard())
+                send_message(chat_id, f"❌ GitHub API xatoligi: {r.status_code}", get_master_keyboard())
         except Exception as e:
             send_message(chat_id, f"❌ Bulutga ulashda xatolik: {e}", get_master_keyboard())
 
@@ -648,6 +701,10 @@ def handle_cloud_run(chat_id: int):
 
 
 def handle_settings(chat_id: int):
+    if not is_admin(chat_id):
+        send_message(chat_id, "⛔ Tizim sozlamalari faqat Admin uchun.", get_user_keyboard())
+        return
+
     st = load_settings()
     msg = f"""<b>⚙️ TIZIM SOZLAMALARI</b>
 
@@ -660,17 +717,16 @@ def handle_settings(chat_id: int):
 
     keyboard = {
         "inline_keyboard": [
-            [
-                {"text": "🎛️ Master Dashboard (Web App)", "web_app": {"url": DASHBOARD_URL}}
-            ],
-            [
-                {"text": "🔙 Asosiy Menyu", "callback_data": "main_menu"}
-            ]
+            [{"text": "🎛️ Master Dashboard (Web App)", "web_app": {"url": DASHBOARD_URL}}],
+            [{"text": "🔙 Asosiy Menyu", "callback_data": "main_menu"}]
         ]
     }
     send_message(chat_id, msg, keyboard)
 
 
+# -----------------------------------------------------------------------------
+# DISPATCHER
+# -----------------------------------------------------------------------------
 def process_update(update: dict):
     if "message" in update:
         msg = update["message"]
@@ -678,12 +734,11 @@ def process_update(update: dict):
         text = msg.get("text", "").strip()
         user_name = msg["chat"].get("first_name", "")
 
-        # Check if user is in an interactive state
         state = USER_STATES.get(chat_id)
         if state == "WAITING_ADD_STUDENT":
             if text in ("/cancel", "Bekor qilish", "bekor"):
                 USER_STATES.pop(chat_id, None)
-                send_message(chat_id, "❌ Yangi talaba qo'shish bekor qilindi.", get_master_keyboard())
+                send_message(chat_id, "❌ Yangi talaba qo'shish bekor qilindi.", get_keyboard_for(chat_id))
                 return
             process_add_student_text(chat_id, text)
             return
@@ -691,13 +746,16 @@ def process_update(update: dict):
         if text in ("/start", "/menu"):
             handle_start(chat_id, user_name)
         elif text == "/dashboard":
-            kb = {
-                "inline_keyboard": [
-                    [{"text": "🎛️ Master Dashboard (Web App)", "web_app": {"url": DASHBOARD_URL}}],
-                    [{"text": "🌐 Brauzerda Ochish", "url": DASHBOARD_URL}]
-                ]
-            }
-            send_message(chat_id, "🎛️ <b>Master Dashboard ga kirish uchun tugmani bosing:</b>", kb)
+            if is_admin(chat_id):
+                kb = {
+                    "inline_keyboard": [
+                        [{"text": "🎛️ Master Dashboard (Web App)", "web_app": {"url": DASHBOARD_URL}}],
+                        [{"text": "🌐 Brauzerda Ochish", "url": DASHBOARD_URL}]
+                    ]
+                }
+                send_message(chat_id, "🎛️ <b>Master Dashboard ga kirish:</b>", kb)
+            else:
+                send_message(chat_id, "⛔ Ushbu sahifa faqat Master Admin uchun mo'ljallangan.", get_user_keyboard())
         elif text in ("/status", "/monitor"):
             handle_monitor(chat_id)
         elif text == "/breakdown":
@@ -708,6 +766,8 @@ def process_update(update: dict):
             handle_start_agent(chat_id)
         elif text == "/stop_agent":
             handle_stop_agent(chat_id)
+        elif text == "/force_stop":
+            handle_force_stop(chat_id)
         elif text == "/run_lessons":
             handle_run_lessons(chat_id)
         elif text == "/run_tests":
@@ -727,18 +787,24 @@ def process_update(update: dict):
         elif text == "/settings":
             handle_settings(chat_id)
         elif text in ("/help", "/yordam"):
-            help_text = """<b>📖 MASTER BOT VA DASHBOARD QO'LLANMASI:</b>
+            if is_admin(chat_id):
+                help_text = """<b>👑 MASTER ADMIN QO'LLANMASI:</b>
 
-🎛️ <b>Dashboard Web App:</b> Telegram ichidan chiqmasdan Master Admin paneliga to'liq kirish.
-🚀 <b>Start / Stop:</b> Agentni fonda ishga tushirish yoki to'xtatish.
-📊 <b>Status & Breakdown:</b> Darslar progressi (178/178), foizlar va tahlil.
-📸 <b>Jonli Skrinshot:</b> e-JDU kabinetining real vaqtdagi fotosurati.
-⚡ <b>Tezkor Darslar:</b> Video va lug'at darslarini bir necha soniyada yechish.
-📝 <b>AI Test Solver:</b> Test savollarini Gemini AI orqali 100% to'g'ri topshirish.
-👥 <b>Talabalar:</b> Talabalar profilini boshqarish va yangi talaba qo'shish.
-☁️ <b>Cloud Run:</b> GitHub Actions orqali noutbuk o'chgan bo'lsa ham bulutda ishlash.
-📋 <b>Loglar:</b> Tizimning real vaqt konsoli."""
-            send_message(chat_id, help_text, get_master_keyboard())
+🎛️ <b>Master Dashboard:</b> Barcha talabalar va tizimni to'liq boshqarish (Web App).
+🛑 <b>Xavfsiz To'xtatish:</b> Joriy darsni to'liq saqlab, so'ng to'xtaydi (/stop_agent).
+⚡ <b>Majburiy To'xtatish:</b> Zudlik bilan to'xtatish uchun: /force_stop.
+👥 <b>Talabalar Bazasi:</b> Yangi talaba qo'shish va parollarni ko'rish (/students).
+☁️ <b>Cloud Run:</b> GitHub Actions orqali 24/7 bulutda ishga tushirish.
+⚠️ <b>Eslatma:</b> Agent ishlayotganda e-JDU ga kirmang!"""
+            else:
+                help_text = """<b>🎓 TALABA QO'LLANMASI:</b>
+
+🚀 <b>Boshlash:</b> Darslaringizni avtomatik yechishni yoqish.
+🛑 <b>To'xtatish:</b> Darsni oxirigacha yetkazib, xavfsiz to'xtash.
+📊 <b>Holat:</b> Bajarilgan darslar foizi va qolgan topshiriqlar.
+📸 <b>Skrinshot:</b> e-JDU dagi darslaringiz fotosuratini olish.
+⚠️ <b>Muhim:</b> Darslar bajarilayotgan paytda e-JDU saytiga kirmang!"""
+            send_message(chat_id, help_text, get_keyboard_for(chat_id))
 
     elif "callback_query" in update:
         cq = update["callback_query"]
@@ -774,12 +840,11 @@ def process_update(update: dict):
         elif data == "settings":
             handle_settings(chat_id)
         elif data == "main_menu":
-            send_message(chat_id, "👑 <b>Asosiy Boshqaruv Menyusi:</b>", get_master_keyboard())
+            handle_start(chat_id)
 
 
 def run_bot():
-    print(f"🤖 Master Telegram Bot ishga tushirilmoqda... Token: {BOT_TOKEN[:10]}...", flush=True)
-    setup_telegram_bot_ui()
+    print(f"🤖 Master & Student Role Bot ishga tushirilmoqda... Token: {BOT_TOKEN[:10]}...", flush=True)
     offset = 0
     while True:
         try:
@@ -790,11 +855,10 @@ def run_bot():
                     offset = item["update_id"] + 1
                     process_update(item)
             elif r.status_code == 409:
-                logger.warning("Telegram 409 Conflict. Boshqa nusxa yopilmoqda...")
                 time.sleep(3)
             else:
                 time.sleep(2)
-        except Exception as e:
+        except Exception:
             time.sleep(3)
 
 

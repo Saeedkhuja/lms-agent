@@ -37,6 +37,7 @@ class AgentRunner:
     def __init__(self):
         self.thread: Optional[threading.Thread] = None
         self.stop_event = threading.Event()
+        self.graceful_stop_requested = False
         self.state = "STOPPED"  # STOPPED, RUNNING, WATCHING_VIDEO, SOLVING_QUIZ, STANDBY, ERROR
         self.active_profile: Optional[Dict[str, Any]] = None
         self.current_lesson: Optional[str] = None
@@ -129,6 +130,7 @@ class AgentRunner:
         return {
             "state": self.state,
             "is_running": self.state not in ("STOPPED", "ERROR"),
+            "is_stopping": self.graceful_stop_requested,
             "active_profile": self.active_profile,
             "current_lesson": self.current_lesson,
             "current_chapter": self.current_chapter,
@@ -146,6 +148,7 @@ class AgentRunner:
             return False
 
         self.stop_event.clear()
+        self.graceful_stop_requested = False
         self.state = "RUNNING"
         self.start_time = time.time()
         self.custom_task_prompt = custom_task
@@ -159,19 +162,24 @@ class AgentRunner:
         self.log("INFO", "🚀 Agent fon jarayoni muvaffaqiyatli ishga tushirildi.")
         return True
 
-    def stop(self):
+    def stop(self, force: bool = False):
         if not (self.thread and self.thread.is_alive()):
             self.state = "STOPPED"
+            self.graceful_stop_requested = False
             self.log("INFO", "Agent allaqachon to'xtatilgan.")
             return True
 
-        self.log("INFO", "🛑 Agentni to'xtatish so'rovi yuborildi...")
-        self.stop_event.set()
-        self.state = "STOPPING"
-        self.thread.join(timeout=8.0)
-        self.state = "STOPPED"
-        self.current_lesson = None
-        self.log("INFO", "Agent to'liq to'xtatildi.")
+        if force or self.state in ("STANDBY", "STOPPED"):
+            self.log("INFO", "🛑 Agent zudlik bilan to'xtatildi.")
+            self.stop_event.set()
+            self.state = "STOPPED"
+            self.graceful_stop_requested = False
+            self.current_lesson = None
+            return True
+
+        self.log("INFO", "⏳ [GRACEFUL STOP] Xavfsiz to'xtatish so'rovi qabul qilindi. Agent hozirgi darsini oxirigacha yakunlab, so'ng to'xtaydi (resurslar tejaladi)...")
+        self.graceful_stop_requested = True
+        self.state = "FINISHING_TASK"
         return True
 
     # ------------------------------------------------------------------------
@@ -598,6 +606,13 @@ FAQAT quyidagi JSON formatida javob bering:
                 })
             else:
                 self.log("WARN", f"Dars bajarilmadi yoki xatolik yuz berdi: {unit['title']}")
+
+            if self.graceful_stop_requested:
+                self.log("INFO", f"✅ [GRACEFUL STOP] Joriy vazifa '{unit['title']}' oxirigacha yakunlandi va saqlandi! Agent xavfsiz to'xtatildi.")
+                self.state = "STOPPED"
+                self.graceful_stop_requested = False
+                self.stop_event.set()
+                break
 
         self.current_progress_pct = 100
         self.current_lesson = None
