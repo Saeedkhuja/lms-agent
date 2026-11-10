@@ -347,16 +347,18 @@ def handle_monitor(chat_id: int, message_id: Optional[int] = None):
     progress_bar = "▓" * bars + "░" * (10 - bars)
 
     warning = get_active_warning()
+    prof_name = prof.get("name", "Saidislomxodja")
+    current_lesson_text = status.get("current_lesson") or ("Barcha darslar to'liq yakunlangan! 🎉" if len(pending) == 0 else "Kutish rejimida")
 
     msg = f"""<b>📊 JONLI KURS MONITORINGI</b>{warning}
 {state_emoji} <b>Holat:</b> <code>{state_uz}</code> ({state})
-👤 <b>Talaba:</b> {prof.get('name', 'Saidislomxo\'ja')} (<code>{prof['user_id']}</code>)
+👤 <b>Talaba:</b> {prof_name} (<code>{prof['user_id']}</code>)
 📚 <b>Kurs:</b> {prof.get('course', 'N3 (2026秋セメスター)')}
 
 📈 <b>Progress:</b> [{progress_bar}] <b>{pct}%</b>
 ✅ <b>Bajarilgan darslar:</b> <code>{finished}</code> / <code>{total}</code> ta
 ⏳ <b>Qolgan darslar:</b> <code>{len(pending)}</code> ta
-🎯 <b>Joriy dars:</b> {status.get('current_lesson') or ('Barcha darslar to\'liq yakunlangan! 🎉' if len(pending) == 0 else 'Kutish rejimida')}
+🎯 <b>Joriy dars:</b> {current_lesson_text}
 ⏰ <b>Vaqt:</b> {datetime.now().strftime('%H:%M:%S')}
 """
     if pending:
@@ -555,8 +557,9 @@ def handle_students(chat_id: int):
     for i, p in enumerate(profiles, 1):
         status_badge = "🟢 Faol" if p.get("active", True) else "⚪ Nofaol"
         completed = load_completed_tasks(p["user_id"])
+        st_name = p.get("name", "Noma'lum")
         msg += (
-            f"<b>{i}. {p.get('name', 'Noma\'lum')}</b> ({status_badge})\n"
+            f"<b>{i}. {st_name}</b> ({status_badge})\n"
             f"   • Login ID: <code>{p['user_id']}</code>\n"
             f"   • Parol: <code>{p.get('password', '***')}</code>\n"
             f"   • Kurs: <code>{p.get('course', 'N3')}</code>\n"
@@ -711,13 +714,14 @@ def handle_settings(chat_id: int):
         return
 
     st = load_settings()
+    headless_str = "Yoqilgan (Tezkor)" if st.get("headless", True) else "O'chirilgan"
     msg = f"""<b>⚙️ TIZIM SOZLAMALARI</b>
 
 ⚡ <b>Tezlik koeffitsiyenti:</b> <code>{st.get('speed', 1.0)}x</code>
 ⏱️ <b>Matn darslari kutish vaqti:</b> <code>{st.get('doc_time', 25)}s</code>
 🔄 <b>Tekshiruv intervali:</b> <code>{st.get('check_interval', 15)}m</code>
 🤖 <b>AI Modeli:</b> <code>{st.get('gemini_model', 'gemini-3.5-flash-lite')}</code>
-🖥️ <b>Headless rejimi:</b> <code>{'Yoqilgan (Tezkor)' if st.get('headless', True) else 'O\'chirilgan'}</code>
+🖥️ <b>Headless rejimi:</b> <code>{headless_str}</code>
 🌐 <b>Dashboard URL:</b> <code>{DASHBOARD_URL}</code>"""
 
     keyboard = {
