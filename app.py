@@ -31,16 +31,48 @@ app.add_middleware(
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+@app.post("/telegram/webhook")
+async def telegram_webhook(request: Request):
+    try:
+        data = await request.json()
+        from telegram_bot import process_update
+        process_update(data)
+        return {"ok": True}
+    except Exception as e:
+        print(f"⚠️ Webhook update ishlashda xatolik: {e}", flush=True)
+        return {"ok": False, "error": str(e)}
+
 @app.on_event("startup")
 def startup_event():
-    import threading
-    try:
-        from telegram_bot import run_bot
-        t = threading.Thread(target=run_bot, daemon=True)
-        t.start()
-        print("🤖 [STARTUP] Telegram Bot FastAPI bilan birgalikda muvaffaqiyatli ishga tushirildi!", flush=True)
-    except Exception as e:
-        print(f"⚠️ [STARTUP] Telegram botni ishga tushirishda xatolik: {e}", flush=True)
+    import threading, requests
+    render_url = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "9273042030:AAEnLAZlZtMphXHu4crzNJoGduR-cbm3yEg").strip()
+    
+    if render_url and bot_token:
+        webhook_url = f"{render_url}/telegram/webhook"
+        try:
+            r = requests.post(
+                f"https://api.telegram.org/bot{bot_token}/setWebhook",
+                json={"url": webhook_url, "drop_pending_updates": False},
+                timeout=10
+            )
+            print(f"🌐 [STARTUP] Telegram Webhook o'rnatildi: {webhook_url} -> {r.json()}", flush=True)
+            from telegram_bot import setup_bot_on_startup
+            threading.Thread(target=setup_bot_on_startup, daemon=True).start()
+        except Exception as e:
+            print(f"⚠️ [STARTUP] Webhook o'rnatishda xatolik: {e}", flush=True)
+    else:
+        try:
+            try:
+                requests.post(f"https://api.telegram.org/bot{bot_token}/deleteWebhook", timeout=5)
+            except Exception:
+                pass
+            from telegram_bot import run_bot
+            t = threading.Thread(target=run_bot, daemon=True)
+            t.start()
+            print("🤖 [STARTUP] Telegram Bot Polling rejimida ishga tushirildi!", flush=True)
+        except Exception as e:
+            print(f"⚠️ [STARTUP] Telegram botni ishga tushirishda xatolik: {e}", flush=True)
 
 # ---------------------------------------------------------------------------
 # MODELS
@@ -55,14 +87,14 @@ class ProfileModel(BaseModel):
     notes: Optional[str] = ""
 
 class SettingsModel(BaseModel):
-    speed: float = 1.0
+    speed: float = 2.0
     doc_time: int = 25
     check_interval: int = 15
-    gemini_api_key: str
-    gemini_model: str = "gemini-3.8-flash"
+    gemini_api_key: Optional[str] = ""
+    gemini_model: str = "gemini-3.5-flash-lite"
     headless: bool = True
     batch_mode: bool = False
-    custom_instructions: str = ""
+    custom_instructions: Optional[str] = ""
 
 class StartAgentRequest(BaseModel):
     profile_id: Optional[str] = None
@@ -211,8 +243,13 @@ def get_settings():
 
 @app.post("/api/settings")
 def update_settings(item: SettingsModel):
-    save_settings(item.dict())
-    agent_runner.log("INFO", "⚙️ Sozlamalar yangilandi")
+    current = load_settings()
+    data = item.dict()
+    if not data.get("gemini_api_key"):
+        data["gemini_api_key"] = current.get("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""))
+    current.update(data)
+    save_settings(current)
+    agent_runner.log("INFO", "⚙️ Sozlamalar muvaffaqiyatli yangilandi")
     return {"status": "ok", "settings": load_settings()}
 
 @app.post("/api/custom-task")

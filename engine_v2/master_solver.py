@@ -22,8 +22,16 @@ from lms_client import LMSDirectClient
 
 import dotenv
 dotenv.load_dotenv()
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-DB_PATH = "/home/saeed/Downloads/lms_v2/question_cache.db"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(DATA_DIR, "question_cache.db")
+if not os.path.exists(DB_PATH) and os.path.exists("/home/saeed/Downloads/lms_v2/question_cache.db"):
+    import shutil
+    try:
+        shutil.copy2("/home/saeed/Downloads/lms_v2/question_cache.db", DB_PATH)
+    except Exception:
+        pass
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -226,8 +234,14 @@ def solve_test_unit(page, test_info: dict) -> bool:
             }''')
             
             if not choices:
+                next_b = page.locator('#ctl00_cplPageContent_lbnNext, a:has-text("次へ"), button:has-text("次へ")').first
                 finish_b = page.locator('#ctl00_cplPageContent_lbnFinish, a:has-text("終了"), button:has-text("終了"), a:has-text("閉じる")').first
-                if finish_b.is_visible():
+                if next_b.is_visible():
+                    print("   ➡️ '次へ' (Keyingisi) bosilmoqda...", flush=True)
+                    next_b.click()
+                    page.wait_for_timeout(2500)
+                    continue
+                elif finish_b.is_visible():
                     print("   🏁 '終了' (Yakunlash) bosilmoqda...", flush=True)
                     finish_b.click()
                     page.wait_for_timeout(3000)
@@ -276,12 +290,34 @@ def solve_test_unit(page, test_info: dict) -> bool:
 
 def main():
     init_db()
+    import argparse
+    parser = argparse.ArgumentParser(description="e-JDU LMS Master Autonomous Test Solver")
+    parser.add_argument("--user-id", type=str, default=None)
+    parser.add_argument("--password", type=str, default=None)
+    args = parser.parse_args()
+
+    user_id = args.user_id
+    password = args.password
+    if not user_id or not password:
+        profiles_file = os.path.join(DATA_DIR, "profiles.json")
+        if os.path.exists(profiles_file):
+            try:
+                with open(profiles_file, "r", encoding="utf-8") as f:
+                    profs = json.load(f)
+                    if profs:
+                        user_id = profs[0].get("user_id")
+                        password = profs[0].get("password")
+            except Exception:
+                pass
+    user_id = user_id or "jdu-226516"
+    password = password or "55ugtk"
+
     print("=" * 60, flush=True)
-    print("🚀 e-JDU LMS MASTER AUTONOMOUS TEST SOLVER", flush=True)
+    print(f"🚀 e-JDU LMS MASTER AUTONOMOUS TEST SOLVER ({user_id})", flush=True)
     print("=" * 60, flush=True)
     
     # 1. Scan live remaining units
-    client = LMSDirectClient("jdu-226516", "55ugtk")
+    client = LMSDirectClient(user_id, password)
     if not client.login() or not client.open_course():
         print("❌ LMS ga ulanib bo'lmadi")
         return
@@ -318,10 +354,10 @@ def main():
         page = context.new_page()
         page.on("dialog", lambda dialog: (print(f"      🔔 [DIALOG]: {dialog.message}", flush=True), dialog.accept()))
         
-        print("\n🔑 Playwright orqali tizimga kirilmoqda...", flush=True)
+        print(f"\n🔑 Playwright orqali tizimga kirilmoqda: {user_id}...", flush=True)
         page.goto("https://e-jdu.uz/default.aspx", wait_until="load", timeout=30000)
-        page.locator('input[name*="txtUserID"]').first.fill("jdu-226516")
-        page.locator('input[name*="txtPassword"]').first.fill("55ugtk")
+        page.locator('input[name*="txtUserID"]').first.fill(user_id)
+        page.locator('input[name*="txtPassword"]').first.fill(password)
         page.locator('button:has-text("ログイン"), input[value*="ログイン"]').first.click()
         page.wait_for_load_state("load")
         page.wait_for_timeout(2000)

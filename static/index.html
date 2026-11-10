@@ -90,12 +90,54 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col md:flex-row antialiased selection:bg-blue-600 selection:text-white">
+<body class="min-h-screen flex flex-col md:flex-row antialiased selection:bg-blue-600 selection:text-white bg-[#090D14]">
 
   <!-- ======================================================================
-       1. SIDEBAR NAVIGATION (Apple HIG Style)
+       MOBILE TOP NAVIGATION BAR (Visible on < 768px / Telegram WebApp)
        ====================================================================== -->
-  <aside class="w-full md:w-64 bg-[#0B101D] border-b md:border-b-0 md:border-r border-white/[0.08] flex flex-col justify-between shrink-0 p-4 md:min-h-screen">
+  <header class="md:hidden bg-[#0B101D] border-b border-white/[0.08] p-3 sticky top-0 z-40 backdrop-blur-md">
+    <div class="flex items-center justify-between mb-2.5">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-md">
+          <i class="bi bi-shield-check text-sm"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-1.5">
+            <span class="font-bold text-xs text-white">e-JDU LMS</span>
+            <span class="text-[8px] font-extrabold px-1 py-0.5 rounded bg-blue-500/20 text-blue-400">ADMIN</span>
+          </div>
+          <span class="text-[10px] text-slate-400">Master Control</span>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button onclick="openSettingsModal()" class="p-2 rounded-lg bg-slate-800 text-slate-300 text-xs hover:text-white border border-white/10">
+          <i class="bi bi-gear-fill"></i>
+        </button>
+        <button onclick="openAddProfileModal()" class="p-2 rounded-lg bg-blue-600 text-white text-xs shadow">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Tabs (Scrollable) -->
+    <div class="flex items-center space-x-1 bg-slate-900/90 p-1 rounded-xl border border-white/[0.06] text-xs">
+      <button onclick="switchTab('overview')" id="mobileTabBtnOverview" class="nav-btn active flex-1 py-1.5 rounded-lg text-center font-medium transition-all">
+        <i class="bi bi-grid-1x2-fill mr-1"></i> Umumiy
+      </button>
+      <button onclick="switchTab('students')" id="mobileTabBtnStudents" class="nav-btn flex-1 py-1.5 rounded-lg text-center font-medium transition-all">
+        <i class="bi bi-people-fill mr-1"></i> Talabalar
+      </button>
+      <button onclick="switchTab('terminal')" id="mobileTabBtnTerminal" class="nav-btn flex-1 py-1.5 rounded-lg text-center font-medium transition-all">
+        <i class="bi bi-terminal-fill mr-1"></i> Konsol
+      </button>
+    </div>
+  </header>
+
+  <!-- ======================================================================
+       1. DESKTOP SIDEBAR NAVIGATION (Apple HIG Style)
+       ====================================================================== -->
+  <aside class="hidden md:flex w-64 bg-[#0B101D] border-r border-white/[0.08] flex-col justify-between shrink-0 p-4 min-h-screen">
     
     <div class="space-y-6">
       <!-- App Brand -->
@@ -124,17 +166,12 @@
             <i class="bi bi-people-fill text-sm"></i>
             <span>Talabalar Bazasi</span>
           </div>
-          <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full font-mono">1</span>
+          <span id="badgeStudentCount" class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full font-mono">1</span>
         </button>
 
         <button onclick="switchTab('terminal')" id="tabBtnTerminal" class="nav-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/[0.04] transition-all font-medium">
           <i class="bi bi-terminal-fill text-sm"></i>
           <span>Konsol & Loglar</span>
-        </button>
-
-        <button onclick="switchTab('screenshot')" id="tabBtnScreenshot" class="nav-btn w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/[0.04] transition-all font-medium">
-          <i class="bi bi-display text-sm"></i>
-          <span>LMS Jonli Ekran</span>
         </button>
       </nav>
 
@@ -188,7 +225,7 @@
   <div class="flex-1 flex flex-col min-w-0">
 
     <!-- TOPBAR -->
-    <header class="h-14 bg-[#090D14]/80 backdrop-blur-md border-b border-white/[0.08] px-6 flex items-center justify-between shrink-0 sticky top-0 z-30">
+    <header class="h-14 bg-[#090D14]/80 backdrop-blur-md border-b border-white/[0.08] px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-30">
       
       <!-- Section Breadcrumb -->
       <div class="flex items-center space-x-2 text-xs">
@@ -198,23 +235,23 @@
       </div>
 
       <!-- Header Controls -->
-      <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2 sm:space-x-3">
         <!-- Live Status Pill -->
         <div id="platformStatusBadge" class="badge-pill bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-          <span id="platformStatusText">100% SINXRON (178/178)</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="platformStatusText">TIZIM ONLINE</span>
         </div>
 
         <!-- Global Start / Stop -->
         <div class="flex items-center space-x-1.5">
-          <button id="btnGlobalStart" onclick="startGlobalAgent()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow flex items-center space-x-1 transition-all">
+          <button id="btnGlobalStart" onclick="startGlobalAgent()" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow flex items-center space-x-1 transition-all">
             <i class="bi bi-play-fill text-sm"></i>
-            <span>Boshlash</span>
+            <span class="hidden sm:inline">Boshlash</span>
           </button>
 
-          <button id="btnGlobalStop" onclick="stopGlobalAgent()" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow flex items-center space-x-1 opacity-50 cursor-not-allowed transition-all" disabled>
+          <button id="btnGlobalStop" onclick="stopGlobalAgent()" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow flex items-center space-x-1 opacity-50 cursor-not-allowed transition-all" disabled>
             <i class="bi bi-stop-fill text-sm"></i>
-            <span>To'xtatish</span>
+            <span class="hidden sm:inline">To'xtatish</span>
           </button>
         </div>
       </div>
@@ -222,7 +259,7 @@
     </header>
 
     <!-- TAB CONTENTS -->
-    <main class="flex-1 p-6 space-y-6 overflow-y-auto">
+    <main class="flex-1 p-3 sm:p-6 space-y-6 overflow-y-auto">
 
       <!-- ================================================================
            TAB 1: OVERVIEW (Umumiy Ko'rinish)
@@ -247,151 +284,202 @@
 
           <div class="panel p-4 flex flex-col justify-between">
             <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
-              <span class="font-semibold text-[11px] uppercase tracking-wider">Kurs O'zlashtirish</span>
+              <span class="font-semibold text-[11px] uppercase tracking-wider">Tizim Topshiriqlari</span>
               <div class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
                 <i class="bi bi-check-circle-fill text-xs"></i>
               </div>
             </div>
             <div>
               <div class="flex items-baseline space-x-2">
-                <span class="text-2xl font-bold text-emerald-400 font-mono">100%</span>
-                <span class="text-xs text-slate-400 font-mono">(178 / 178)</span>
+                <span id="statTotalCompleted" class="text-2xl font-bold text-emerald-400 font-mono">199</span>
+                <span class="text-xs text-slate-400 font-mono">bajarilgan</span>
               </div>
-              <div class="text-[11px] text-emerald-400/90 mt-0.5 font-medium">Barcha dars va testlar topshirilgan</div>
+              <div class="text-[11px] text-emerald-400/90 mt-0.5 font-medium">Barcha talabalar kesimida umumiy</div>
             </div>
           </div>
 
           <div class="panel p-4 flex flex-col justify-between">
             <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
-              <span class="font-semibold text-[11px] uppercase tracking-wider">AI Dvigateli</span>
+              <span class="font-semibold text-[11px] uppercase tracking-wider">Dvigatel Tezligi</span>
               <div class="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
-                <i class="bi bi-cpu-fill text-xs"></i>
+                <i class="bi bi-speedometer2 text-xs"></i>
               </div>
             </div>
             <div>
-              <div class="text-base font-bold text-indigo-300">Gemini 3.5 Flash-Lite</div>
-              <div class="text-[11px] text-slate-400 mt-0.5">SQLite Kesh faol (57 KB)</div>
+              <div id="statEngineSpeed" class="text-2xl font-bold text-indigo-300 font-mono">2.0x</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">HTTP Supersonic & AI</div>
             </div>
           </div>
 
           <div class="panel p-4 flex flex-col justify-between">
             <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
-              <span class="font-semibold text-[11px] uppercase tracking-wider">Foydalanuvchilar Boti</span>
+              <span class="font-semibold text-[11px] uppercase tracking-wider">Tizim & AI Holati</span>
               <div class="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-400 flex items-center justify-center">
                 <i class="bi bi-robot text-xs"></i>
               </div>
             </div>
             <div>
               <div class="text-base font-bold text-sky-400 flex items-center space-x-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span>Online (24/7)</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="statEngineStatus">Online (24/7)</span>
               </div>
-              <div class="text-[11px] text-slate-400 mt-0.5">Start/Stop/Kuzatuv yoqilgan</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">Gemini 3.5 Flash-Lite faol</div>
             </div>
           </div>
 
         </div>
 
-        <!-- Student Roster & Course Breakdown (Two Columns) -->
+        <!-- System Architecture & Quick Hub (Two Columns) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-          <!-- Left: Students List (7 cols) -->
+          <!-- Left: Cloud Services Status (7 cols) -->
           <div class="lg:col-span-7 space-y-4">
             <div class="flex items-center justify-between">
               <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
-                <i class="bi bi-person-lines-fill text-blue-400"></i>
-                <span>Talabalar Boshqaruvi</span>
+                <i class="bi bi-cloud-check-fill text-blue-400"></i>
+                <span>Bulutli Xizmatlar & Integratsiyalar Holati</span>
               </h2>
-              <button onclick="openAddProfileModal()" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center space-x-1 transition-all">
-                <i class="bi bi-plus-lg"></i>
-                <span>Talaba Qo'shish</span>
-              </button>
+              <span class="text-[10px] font-mono text-emerald-400 flex items-center space-x-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span>BARQAROR</span>
+              </span>
             </div>
 
-            <!-- Student Cards List -->
-            <div id="adminStudentsList" class="space-y-3">
-              <!-- Rendered via app.js -->
+            <div class="space-y-3">
+              <!-- Render.com -->
+              <div class="panel p-4 flex items-center justify-between">
+                <div class="flex items-center space-x-3.5">
+                  <div class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center text-lg border border-purple-500/20">
+                    <i class="bi bi-hdd-network-fill"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center space-x-2">
+                      <h4 class="font-bold text-sm text-white">Render.com Web Service</h4>
+                      <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">ONLINE</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-mono mt-0.5">https://lms-agent-y06k.onrender.com</p>
+                  </div>
+                </div>
+                <div class="text-right text-xs">
+                  <span class="text-emerald-400 font-medium">FastAPI + Webhook</span>
+                  <div class="text-[11px] text-slate-500">24/7 Aktiv</div>
+                </div>
+              </div>
+
+              <!-- Telegram Bot -->
+              <div class="panel p-4 flex items-center justify-between">
+                <div class="flex items-center space-x-3.5">
+                  <div class="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center text-lg border border-sky-500/20">
+                    <i class="bi bi-telegram"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center space-x-2">
+                      <h4 class="font-bold text-sm text-white">Telegram Master Bot</h4>
+                      <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">ULANGAN</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-mono mt-0.5">@vvccddkjvrcuccffccu_bot</p>
+                  </div>
+                </div>
+                <div class="text-right text-xs">
+                  <span class="text-sky-400 font-medium">Telegram Webhook</span>
+                  <div class="text-[11px] text-slate-500">0ms javob tezligi</div>
+                </div>
+              </div>
+
+              <!-- KnowledgeDeliver LMS -->
+              <div class="panel p-4 flex items-center justify-between">
+                <div class="flex items-center space-x-3.5">
+                  <div class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center text-lg border border-blue-500/20">
+                    <i class="bi bi-mortarboard-fill"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center space-x-2">
+                      <h4 class="font-bold text-sm text-white">KnowledgeDeliver LMS</h4>
+                      <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">e-JDU.UZ</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-mono mt-0.5">https://e-jdu.uz (HTTPS Sinxron)</p>
+                  </div>
+                </div>
+                <div class="text-right text-xs">
+                  <span class="text-blue-400 font-medium">HTTP Direct API</span>
+                  <div class="text-[11px] text-slate-500">2x tezlik nisbati</div>
+                </div>
+              </div>
+
+              <!-- GitHub Actions -->
+              <div class="panel p-4 flex items-center justify-between">
+                <div class="flex items-center space-x-3.5">
+                  <div class="w-10 h-10 rounded-xl bg-slate-700/50 text-slate-300 flex items-center justify-center text-lg border border-white/10">
+                    <i class="bi bi-github"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center space-x-2">
+                      <h4 class="font-bold text-sm text-white">GitHub Actions Runner</h4>
+                      <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">24/7 CRON</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-mono mt-0.5">Saeedkhuja/lms-agent</p>
+                  </div>
+                </div>
+                <div class="text-right text-xs">
+                  <span class="text-indigo-400 font-medium">Cloud Ubuntu Engine</span>
+                  <div class="text-[11px] text-slate-500">Avto-sinxronizatsiya</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Right: Course Breakdown Details (5 cols) -->
+          <!-- Right: System Fast Operations (5 cols) -->
           <div class="lg:col-span-5 space-y-4">
             <div class="flex items-center justify-between">
               <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
-                <i class="bi bi-pie-chart-fill text-indigo-400"></i>
-                <span>N3 Kursi Bo'limlar Tafsiloti</span>
+                <i class="bi bi-cpu text-indigo-400"></i>
+                <span>Tezkor Tizim Harakatlari</span>
               </h2>
-              <span class="text-[11px] font-mono text-emerald-400">178 ta birlik</span>
             </div>
 
-            <div class="panel p-4 space-y-3.5 text-xs">
+            <div class="panel p-4 space-y-3 text-xs">
+              <p class="text-slate-400 text-xs">Ushbu tugmalar orqali butun tizim bo'yicha global vazifalarni boshqarishingiz mumkin:</p>
               
-              <!-- Video & Dialogues -->
-              <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-300 flex items-center space-x-2">
-                    <i class="bi bi-play-circle text-blue-400"></i>
-                    <span>Video & Suhbat Darslari</span>
-                  </span>
-                  <span class="font-mono text-emerald-400 font-bold">29 / 29 (100%)</span>
+              <button onclick="triggerEngineLessons()" class="w-full p-3 rounded-xl bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-300 border border-indigo-500/30 flex items-center space-x-3 transition-all text-left">
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                  <i class="bi bi-lightning-charge-fill text-base"></i>
                 </div>
-                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                  <div class="bg-blue-500 h-1.5 rounded-full" style="width: 100%"></div>
+                <div>
+                  <div class="font-bold text-white text-xs">Barcha Darslarni Yechish (HTTP)</div>
+                  <div class="text-[11px] text-slate-400">2x tezlik hisobi bilan videolarni yakunlash</div>
                 </div>
-              </div>
+              </button>
 
-              <!-- Vocabulary & Grammar -->
-              <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-300 flex items-center space-x-2">
-                    <i class="bi bi-book text-indigo-400"></i>
-                    <span>Lug'at & Grammatika Darslari</span>
-                  </span>
-                  <span class="font-mono text-emerald-400 font-bold">138 / 138 (100%)</span>
+              <button onclick="triggerEngineTests()" class="w-full p-3 rounded-xl bg-blue-600/15 hover:bg-blue-600/25 text-blue-300 border border-blue-500/30 flex items-center space-x-3 transition-all text-left">
+                <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                  <i class="bi bi-check2-all text-base"></i>
                 </div>
-                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                  <div class="bg-indigo-500 h-1.5 rounded-full" style="width: 100%"></div>
+                <div>
+                  <div class="font-bold text-white text-xs">AI Test Solver (Gemini V2)</div>
+                  <div class="text-[11px] text-slate-400">Yangi qo'shilgan testlarni yechish</div>
                 </div>
-              </div>
+              </button>
 
-              <!-- Lesson Tests -->
-              <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-300 flex items-center space-x-2">
-                    <i class="bi bi-card-checklist text-amber-400"></i>
-                    <span>Darslik Testlari (1, 2, 3, 4-dars)</span>
-                  </span>
-                  <span class="font-mono text-emerald-400 font-bold">4 / 4 (100%)</span>
+              <button onclick="switchTab('students')" class="w-full p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-white/10 flex items-center space-x-3 transition-all text-left">
+                <div class="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-slate-300 shrink-0">
+                  <i class="bi bi-people-fill text-base"></i>
                 </div>
-                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                  <div class="bg-amber-500 h-1.5 rounded-full" style="width: 100%"></div>
+                <div>
+                  <div class="font-bold text-white text-xs">Talabalar Bazasiga O'tish</div>
+                  <div class="text-[11px] text-slate-400">Har bir talabaning shaxsiy sahifasi va parollari</div>
                 </div>
-              </div>
+              </button>
 
-              <!-- Grammar Tests -->
-              <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-300 flex items-center space-x-2">
-                    <i class="bi bi-check2-circle text-emerald-400"></i>
-                    <span>Grammatika Testlari (1..9-testlar)</span>
-                  </span>
-                  <span class="font-mono text-emerald-400 font-bold">7 / 7 (100%)</span>
+              <button onclick="openSettingsModal()" class="w-full p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-white/10 flex items-center space-x-3 transition-all text-left">
+                <div class="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-slate-300 shrink-0">
+                  <i class="bi bi-gear-fill text-base"></i>
                 </div>
-                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                  <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 100%"></div>
+                <div>
+                  <div class="font-bold text-white text-xs">Tizim Sozlamalari</div>
+                  <div class="text-[11px] text-slate-400">Gemini API kaliti, tezlik va parametrlar</div>
                 </div>
-              </div>
-
-              <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-400">
-                <span>Holat: KnowledgeDeliver LMS</span>
-                <span class="text-emerald-400 font-semibold flex items-center space-x-1">
-                  <i class="bi bi-shield-fill-check"></i>
-                  <span>100% Sinxronlashgan</span>
-                </span>
-              </div>
-
+              </button>
             </div>
-
           </div>
 
         </div>
@@ -455,39 +543,140 @@
 
       </div>
 
-      <!-- ================================================================
-           TAB 4: LIVE LMS SCREENSHOT (Jonli Ekran)
-           ================================================================ -->
-      <div id="sectionScreenshot" class="hidden space-y-4">
-        
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-base font-bold text-white">LMS Jonli Ekran Ko'rinishi</h2>
-            <p class="text-xs text-slate-400">KnowledgeDeliver LMS platformasining real vaqtdagi ekrani</p>
-          </div>
-          <button onclick="refreshScreenshot()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center space-x-1.5 shadow">
-            <i class="bi bi-arrow-clockwise"></i>
-            <span>Qayta Suratga Olish</span>
-          </button>
-        </div>
-
-        <div class="panel p-4 flex items-center justify-center min-h-[500px] bg-[#070B12]">
-          <div id="screenshotLoading" class="text-center py-16 space-y-2.5 hidden">
-            <div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p class="text-xs text-slate-400 font-mono">LMS tizimidan jonli skrinshot olinmoqda...</p>
-          </div>
-          <img id="tabScreenshotImg" src="/static/final_proof.png" alt="LMS Jonli Ekran" class="max-h-[650px] w-auto mx-auto object-contain rounded-lg border border-white/10 shadow-2xl">
-        </div>
-
-      </div>
-
-    </main>
-
-  </div>
-
   <!-- ======================================================================
        3. MODALS
        ====================================================================== -->
+
+  <!-- DEDICATED STUDENT DETAIL MODAL (PAGE) -->
+  <div id="studentDetailModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md hidden">
+    <div class="panel w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-white/10 bg-[#0F1626] overflow-hidden rounded-2xl">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 bg-white/[0.02]">
+        <div class="flex items-center space-x-3">
+          <div id="detailAvatar" class="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white text-lg shadow-lg">
+            S
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 id="detailName" class="text-base font-bold text-white tracking-tight">Talaba Nomi</h3>
+              <span id="detailBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">FAOL</span>
+            </div>
+            <p id="detailCourse" class="text-xs text-slate-400 truncate">N3 (2026秋セメスター)</p>
+          </div>
+        </div>
+        <button onclick="closeStudentDetailModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all">
+          <i class="bi bi-x-lg text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="flex-1 p-4 sm:p-5 space-y-5 overflow-y-auto">
+        <!-- Credentials & Stats Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Credentials Card -->
+          <div class="card-elevated p-4 space-y-3">
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
+              <i class="bi bi-key-fill text-amber-400"></i>
+              <span>LMS Kirish Ma'lumotlari</span>
+            </div>
+            
+            <div class="space-y-2 text-xs font-mono">
+              <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/90 border border-white/5">
+                <span class="text-slate-400">Login:</span>
+                <div class="flex items-center space-x-2">
+                  <span id="detailUserId" class="font-bold text-blue-400">jdu-226516</span>
+                  <button type="button" onclick="copyDetailUserId()" class="text-slate-500 hover:text-slate-300"><i class="bi bi-clipboard"></i></button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/90 border border-white/5">
+                <span class="text-slate-400">Parol:</span>
+                <div class="flex items-center space-x-2">
+                  <span id="detailPasswordMasked" class="font-bold text-slate-200">••••••</span>
+                  <button type="button" onclick="toggleDetailPasswordVisibility()" class="text-slate-400 hover:text-white">
+                    <i id="detailEyeIcon" class="bi bi-eye"></i>
+                  </button>
+                  <button type="button" onclick="copyDetailPassword()" class="text-slate-500 hover:text-slate-300"><i class="bi bi-clipboard"></i></button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/90 border border-white/5">
+                <span class="text-slate-400">Platforma:</span>
+                <a href="https://e-jdu.uz" target="_blank" class="text-cyan-400 hover:underline flex items-center space-x-1">
+                  <span>e-jdu.uz</span>
+                  <i class="bi bi-box-arrow-up-right text-[10px]"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress Card -->
+          <div class="card-elevated p-4 space-y-3 flex flex-col justify-between">
+            <div>
+              <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1.5 mb-2">
+                <i class="bi bi-pie-chart-fill text-indigo-400"></i>
+                <span>Kurs O'zlashtirish</span>
+              </div>
+              
+              <div class="flex items-baseline justify-between mb-1.5">
+                <span id="detailProgressPct" class="text-3xl font-extrabold text-emerald-400 font-mono">100%</span>
+                <span id="detailProgressRatio" class="text-xs text-slate-400 font-mono">199 / 206 dars</span>
+              </div>
+
+              <div class="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden mb-2">
+                <div id="detailProgressBar" class="h-2.5 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 transition-all duration-500" style="width: 100%"></div>
+              </div>
+              <p id="detailProgressStatus" class="text-[11px] text-slate-400">Tizimdagi darslar muvaffaqiyatli topshirildi</p>
+            </div>
+
+            <!-- Student Action Buttons inside Card -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+              <button id="btnDetailStart" onclick="startCurrentDetailStudent()" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center space-x-1 shadow transition-all">
+                <i class="bi bi-play-fill text-base"></i>
+                <span>Boshlash</span>
+              </button>
+              <button id="btnDetailStop" onclick="stopCurrentDetailStudent()" class="px-3 py-2 rounded-lg bg-rose-600/30 hover:bg-rose-600 text-rose-300 hover:text-white text-xs font-semibold flex items-center justify-center space-x-1 border border-rose-500/30 transition-all">
+                <i class="bi bi-stop-fill text-base"></i>
+                <span>To'xtatish</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student History / Task List -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-1.5">
+              <i class="bi bi-journal-check text-blue-400"></i>
+              <span>Bajarilgan Darslar & Topshiriqlar Tarixi</span>
+            </h4>
+            <span id="detailHistoryCount" class="text-[11px] font-mono text-emerald-400">0 ta topshirilgan</span>
+          </div>
+
+          <div id="detailHistoryList" class="max-h-60 overflow-y-auto space-y-1.5 p-3 rounded-xl bg-slate-900/80 border border-white/5 font-mono text-xs">
+            <div class="text-slate-500 text-center py-4">Yuklanmoqda...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-white/10 bg-white/[0.02] flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center space-x-2">
+          <button onclick="editCurrentDetailStudent()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center space-x-1 border border-white/10">
+            <i class="bi bi-pencil"></i>
+            <span>Tahrirlash</span>
+          </button>
+          <button onclick="deleteCurrentDetailStudent()" class="px-3 py-2 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white text-xs font-semibold flex items-center space-x-1 border border-rose-500/20">
+            <i class="bi bi-trash"></i>
+            <span>O'chirish</span>
+          </button>
+        </div>
+        <button onclick="closeStudentDetailModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">
+          Yopish
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ADD / EDIT PROFILE MODAL -->
   <div id="profileModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm hidden">
@@ -607,53 +796,29 @@
 
   <!-- SCRIPT LOGIC -->
   <script>
-    // Tab Switcher
+    // Tab Switcher (Desktop & Mobile)
     function switchTab(tabName) {
-      const tabs = ['overview', 'students', 'terminal', 'screenshot'];
+      const tabs = ['overview', 'students', 'terminal'];
       tabs.forEach(t => {
         const sec = document.getElementById(`section${t.charAt(0).toUpperCase() + t.slice(1)}`);
         const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        const mobBtn = document.getElementById(`mobileTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
         if (sec) sec.classList.toggle('hidden', t !== tabName);
         if (btn) btn.classList.toggle('active', t === tabName);
+        if (mobBtn) {
+          mobBtn.classList.toggle('active', t === tabName);
+          mobBtn.classList.toggle('bg-blue-600', t === tabName);
+          mobBtn.classList.toggle('text-white', t === tabName);
+        }
       });
 
       const titles = {
         'overview': "Umumiy Ko'rinish",
         'students': "Talabalar Bazasi",
-        'terminal': "Konsol & Loglar",
-        'screenshot': "LMS Jonli Ekran"
+        'terminal': "Konsol & Loglar"
       };
       const topTitle = document.getElementById("topbarTitle");
       if (topTitle) topTitle.innerText = titles[tabName] || "Dashboard";
-
-      if (tabName === 'screenshot') {
-        refreshScreenshot();
-      }
-    }
-
-    async function refreshScreenshot() {
-      const img = document.getElementById("tabScreenshotImg");
-      const loading = document.getElementById("screenshotLoading");
-      if (loading) loading.classList.remove("hidden");
-      if (img) img.classList.add("hidden");
-
-      try {
-        const res = await fetch("/api/screenshot");
-        const data = await res.json();
-        if (data.screenshot && img) {
-          img.src = `data:image/png;base64,${data.screenshot}`;
-          img.classList.remove("hidden");
-        } else {
-          if (img) {
-            img.src = `/static/final_proof.png?t=${Date.now()}`;
-            img.classList.remove("hidden");
-          }
-        }
-      } catch (err) {
-        console.error("Screenshot error:", err);
-      } finally {
-        if (loading) loading.classList.add("hidden");
-      }
     }
   </script>
   <script src="app.js"></script>

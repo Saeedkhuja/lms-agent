@@ -179,13 +179,44 @@ class LMSDirectClient:
 
         return None
 
-    def complete_unit(self, uid: str, study_sec: int = 45, is_vp: bool = True) -> bool:
-        """Mark a video or reading unit complete in 0.1s via direct logging.aspx POST"""
+    def calculate_study_duration(self, title: str, speed: float = 2.0, is_vp: bool = True) -> tuple[int, int]:
+        """
+        Dars davomiyligi va 2x tezlik nisbatiga ko'ra real o'rganish vaqtini hisoblash.
+        Qaytaradi: (study_sec, vp_video_time)
+        """
+        speed = max(0.5, float(speed or 2.0))
+        is_video = is_vp or any(k in title for k in ["動画", "ビデオ", "Lecture", "会話", "文法"])
+        
+        if is_video:
+            # Haqiqiy video darsi o'rtacha 450 - 720 soniya (7.5 - 12 daqiqa)
+            # 2x tezlikda ko'rilganda: study_sec = video_davomiyligi / tezlik
+            # Masalan, 600s / 2.0 = 300s (5:00 daqiqa)
+            nominal_video_time = 600
+            if "会話" in title or "Dialog" in title:
+                nominal_video_time = 480
+            elif "文法" in title or "Grammar" in title:
+                nominal_video_time = 720
+            elif "第" in title:
+                nominal_video_time = 540
+
+            study_sec = int(nominal_video_time / speed)
+            return max(90, study_sec), nominal_video_time
+        else:
+            # Matn / lug'at darsi: o'rtacha 120 - 180 soniya
+            nominal_doc_time = 150
+            study_sec = int(nominal_doc_time / speed)
+            return max(60, study_sec), 0
+
+    def complete_unit(self, uid: str, study_sec: Optional[int] = None, is_vp: bool = True, title: str = "", speed: float = 2.0) -> bool:
+        """Mark a video or reading unit complete via direct logging.aspx POST with realistic study duration"""
+        calc_sec, nominal_video = self.calculate_study_duration(title, speed, is_vp)
+        actual_study_sec = study_sec if study_sec is not None else calc_sec
+
         url = f"{BASE_URL}/home/course/viewer/logging.aspx"
         payload = {
             "uid": str(uid),
             "cid": str(self.course_id),
-            "study_sec": str(study_sec),
+            "study_sec": str(actual_study_sec),
             "is_finished": "1",
             "rate": "100",
             "score": "0",
@@ -196,8 +227,8 @@ class LMSDirectClient:
             "last_page_no": "0",
             "page_no": "0",
             "slide_no": "0",
-            "vp_resume_time": "0",
-            "vp_video_time": "0",
+            "vp_resume_time": str(nominal_video) if is_vp else "0",
+            "vp_video_time": str(nominal_video) if is_vp else "0",
             "is_vp_finish": "1" if is_vp else "0",
             "has_vp": "1" if is_vp else "0",
             "face_during_learning_error": "",
@@ -213,8 +244,8 @@ class LMSDirectClient:
         res = self.session.post(url, data=payload, headers=headers, timeout=10)
         return res.status_code == 200 or res.status_code == 302
 
-    def complete_all_pending_lessons(self) -> Dict[str, int]:
-        """Barcha qolib ketgan video va matn darslarini HTTP orqali birma-bir to'liq topshirish"""
+    def complete_all_pending_lessons(self, speed: float = 2.0) -> Dict[str, int]:
+        """Barcha qolib ketgan video va matn darslarini HTTP orqali 2x tezlik hisobi bilan topshirish"""
         units = self.scan_units()
         pending = [u for u in units if not u["is_finished"]]
         completed = 0
@@ -231,11 +262,12 @@ class LMSDirectClient:
                 uid = info.get("uid") if info else None
 
             if uid:
-                is_vp = any(k in title for k in ["動画", "ビデオ", "Lecture"])
-                ok = self.complete_unit(uid, study_sec=45, is_vp=is_vp)
+                is_vp = any(k in title for k in ["動画", "ビデオ", "Lecture", "会話", "文法"])
+                ok = self.complete_unit(uid, is_vp=is_vp, title=title, speed=speed)
                 if ok:
                     completed += 1
-                    print(f"✅ [HTTP] Dars topshirildi: {title} (UID: {uid})")
+                    study_s, _ = self.calculate_study_duration(title, speed, is_vp)
+                    print(f"✅ [HTTP] Dars topshirildi: {title} (UID: {uid}, Vaqt: {study_s}s, {speed}x tezlik)")
                 else:
                     failed += 1
             else:

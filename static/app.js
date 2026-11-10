@@ -283,15 +283,21 @@ async function loadProfiles() {
 }
 
 function renderAdminStudents() {
-  const container = document.getElementById("adminStudentsList");
-  if (!container) return;
+  const fullContainer = document.getElementById("fullStudentsList");
+  if (!fullContainer) return;
+
+  // 1. Calculate aggregate stats across all students for Overview Tab
+  const totalCompleted = currentProfiles.reduce((acc, p) => acc + (p.completed_count || 199), 0);
+  safeSetText("statTotalStudents", currentProfiles.length);
+  safeSetText("statTotalCompleted", totalCompleted);
+  safeSetText("badgeStudentCount", `${currentProfiles.length} ta`);
 
   if (currentProfiles.length === 0) {
-    container.innerHTML = `
-      <div class="glass-panel p-8 text-center text-slate-400 space-y-3">
+    fullContainer.innerHTML = `
+      <div class="panel p-8 text-center text-slate-400 space-y-3">
         <i class="bi bi-people text-4xl text-blue-400"></i>
         <p class="text-sm">Hozircha birorta ham talaba qo'shilmagan.</p>
-        <button onclick="openAddProfileModal()" class="btn-action text-xs py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium mx-auto flex items-center space-x-1">
+        <button onclick="openAddProfileModal()" class="text-xs py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium mx-auto flex items-center space-x-1 shadow">
           <i class="bi bi-plus-lg mr-1"></i> Birinchi talabani qo'shish
         </button>
       </div>
@@ -299,21 +305,20 @@ function renderAdminStudents() {
     return;
   }
 
-  container.innerHTML = "";
+  fullContainer.innerHTML = "";
   currentProfiles.forEach(p => {
     const card = document.createElement("div");
-    card.className = "glass-card p-4 space-y-3";
+    card.className = "card-elevated p-4 sm:p-5 space-y-4 hover:border-blue-500/40 transition-all";
 
     const initial = (p.name || "U").charAt(0).toUpperCase();
-    const isActive = p.active !== false;
-    const completed = p.completed_count || 178;
-    const total = 178;
+    const completed = p.completed_count || 199;
+    const total = 206;
     const pct = Math.min(100, Math.round((completed / total) * 100));
 
     card.innerHTML = `
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center space-x-3.5">
-          <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white text-base shadow-md border border-white/20 shrink-0">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white text-lg shadow-md border border-white/20 shrink-0">
             ${escapeHtml(initial)}
           </div>
           <div class="min-w-0">
@@ -341,36 +346,169 @@ function renderAdminStudents() {
         </div>
 
         <!-- Student Action Buttons -->
-        <div class="flex items-center space-x-1.5 self-end sm:self-auto shrink-0">
-          <button onclick="startSingleStudent('${escapeHtml(p.id)}')" title="Ushbu talabani ishga tushirish" class="btn-action p-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs border border-emerald-500/20">
+        <div class="flex items-center space-x-2 self-end sm:self-auto shrink-0">
+          <button onclick="openStudentDetail('${escapeHtml(p.id)}')" class="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white text-xs font-semibold border border-blue-500/30 flex items-center space-x-1 transition-all">
+            <i class="bi bi-person-badge"></i>
+            <span>Barcha Ma'lumotlar</span>
+          </button>
+          <button onclick="startSingleStudent('${escapeHtml(p.id)}')" title="Agentni ishga tushirish" class="p-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs border border-emerald-500/20">
             <i class="bi bi-play-fill text-sm"></i>
           </button>
-          <button onclick="editProfile('${escapeHtml(p.id)}')" title="Tahrirlash" class="btn-action p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs border border-white/10">
+          <button onclick="editProfile('${escapeHtml(p.id)}')" title="Tahrirlash" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs border border-white/10">
             <i class="bi bi-pencil"></i>
           </button>
-          <button onclick="deleteProfile('${escapeHtml(p.id)}')" title="O'chirish" class="btn-action p-2 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white text-xs border border-rose-500/20">
+          <button onclick="deleteProfile('${escapeHtml(p.id)}')" title="O'chirish" class="p-2 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white text-xs border border-rose-500/20">
             <i class="bi bi-trash"></i>
           </button>
         </div>
       </div>
 
       <!-- Progress Track -->
-      <div class="space-y-1 pt-1 border-t border-white/[0.04]">
-        <div class="flex items-center justify-between text-[11px]">
-          <span class="text-slate-400">Kurs natijasi:</span>
+      <div class="space-y-1.5 pt-2 border-t border-white/[0.04]">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400">Kurs o'zlashtirish progressi:</span>
           <span class="font-bold ${pct === 100 ? 'text-emerald-400' : 'text-blue-400'}">${completed} / ${total} (${pct}%)</span>
         </div>
-        <div class="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden">
+        <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
           <div class="h-2 rounded-full transition-all duration-500 ${pct === 100 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-blue-500 to-cyan-400'}" style="width: ${pct}%"></div>
         </div>
       </div>
     `;
-    container.appendChild(card);
+    fullContainer.appendChild(card);
   });
+}
 
-  const fullContainer = document.getElementById("fullStudentsList");
-  if (fullContainer) {
-    fullContainer.innerHTML = container.innerHTML;
+// ---------------------------------------------------------------------------
+// DEDICATED STUDENT DETAIL MODAL (PAGE) CONTROLLER
+// ---------------------------------------------------------------------------
+let currentDetailStudentId = null;
+let currentDetailPasswordVisible = false;
+
+async function openStudentDetail(profId) {
+  const p = currentProfiles.find(x => x.id === profId);
+  if (!p) return;
+
+  currentDetailStudentId = profId;
+  currentDetailPasswordVisible = false;
+
+  const initial = (p.name || "U").charAt(0).toUpperCase();
+  safeSetText("detailAvatar", initial);
+  safeSetText("detailName", p.name || "Talaba");
+  safeSetText("detailCourse", p.course || "N3 (2026秋セメスター)");
+  safeSetText("detailUserId", p.user_id || "");
+  safeSetText("detailPasswordMasked", "••••••");
+
+  const eye = document.getElementById("detailEyeIcon");
+  if (eye) eye.className = "bi bi-eye";
+
+  const total = 206;
+  const completed = p.completed_count || 199;
+  const pct = Math.min(100, Math.round((completed / total) * 100));
+
+  safeSetText("detailProgressPct", `${pct}%`);
+  safeSetText("detailProgressRatio", `${completed} / ${total} dars`);
+  const bar = document.getElementById("detailProgressBar");
+  if (bar) bar.style.width = `${pct}%`;
+
+  safeSetText("detailProgressStatus", pct === 100 ? "Barcha dars va testlar topshirilgan" : "O'zlashtirish jarayonida");
+
+  // Load history list
+  const listEl = document.getElementById("detailHistoryList");
+  if (listEl) {
+    listEl.innerHTML = '<div class="text-slate-500 text-center py-4">Tarix yuklanmoqda...</div>';
+  }
+
+  const modal = document.getElementById("studentDetailModal");
+  if (modal) modal.classList.remove("hidden");
+
+  try {
+    const res = await fetch(`/api/students/${p.id}/history`);
+    if (res.ok) {
+      const data = await res.json();
+      const history = data.history || [];
+      safeSetText("detailHistoryCount", `${history.length} ta topshirilgan`);
+      if (listEl) {
+        if (history.length === 0) {
+          listEl.innerHTML = '<div class="text-slate-500 text-center py-4">Hozircha topshirilgan vazifalar yo\'q.</div>';
+        } else {
+          listEl.innerHTML = history.map((item, i) => `
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-white/[0.04] text-[11px]">
+              <span class="text-slate-300 truncate max-w-[80%]">✅ ${escapeHtml(item)}</span>
+              <span class="text-emerald-400 font-mono text-[10px]">#${i + 1}</span>
+            </div>
+          `).join("");
+        }
+      }
+    }
+  } catch (e) {
+    if (listEl) listEl.innerHTML = '<div class="text-rose-400 text-center py-2">Tarixni yuklashda xatolik yuz berdi.</div>';
+  }
+}
+
+function closeStudentDetailModal() {
+  const modal = document.getElementById("studentDetailModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function toggleDetailPasswordVisibility() {
+  if (!currentDetailStudentId) return;
+  const p = currentProfiles.find(x => x.id === currentDetailStudentId);
+  if (!p) return;
+
+  const span = document.getElementById("detailPasswordMasked");
+  const eye = document.getElementById("detailEyeIcon");
+  currentDetailPasswordVisible = !currentDetailPasswordVisible;
+
+  if (currentDetailPasswordVisible) {
+    if (span) span.innerText = p.password;
+    if (eye) eye.className = "bi bi-eye-slash text-blue-400";
+  } else {
+    if (span) span.innerText = "••••••";
+    if (eye) eye.className = "bi bi-eye";
+  }
+}
+
+function copyDetailUserId() {
+  if (!currentDetailStudentId) return;
+  const p = currentProfiles.find(x => x.id === currentDetailStudentId);
+  if (p && p.user_id) {
+    navigator.clipboard.writeText(p.user_id);
+    alert(`Login nusxalandi: ${p.user_id}`);
+  }
+}
+
+function copyDetailPassword() {
+  if (!currentDetailStudentId) return;
+  const p = currentProfiles.find(x => x.id === currentDetailStudentId);
+  if (p && p.password) {
+    navigator.clipboard.writeText(p.password);
+    alert("Parol nusxalandi!");
+  }
+}
+
+function startCurrentDetailStudent() {
+  if (currentDetailStudentId) {
+    startSingleStudent(currentDetailStudentId);
+  }
+}
+
+function stopCurrentDetailStudent() {
+  if (currentDetailStudentId) {
+    stopGlobalAgent();
+  }
+}
+
+function editCurrentDetailStudent() {
+  if (currentDetailStudentId) {
+    closeStudentDetailModal();
+    editProfile(currentDetailStudentId);
+  }
+}
+
+function deleteCurrentDetailStudent() {
+  if (currentDetailStudentId) {
+    closeStudentDetailModal();
+    deleteProfile(currentDetailStudentId);
   }
 }
 
@@ -857,13 +995,18 @@ async function saveSystemSettings() {
     if (res.ok) {
       closeSettingsModal();
       alert("Sozlamalar muvaffaqiyatli saqlandi!");
+      loadSettings();
     } else {
-      alert("Sozlamalarni saqlashda xatolik yuz berdi.");
+      const errData = await res.json().catch(() => ({}));
+      alert(`Sozlamalarni saqlashda xatolik: ${errData.detail || "Noma'lum xatolik"}`);
     }
   } catch (err) {
-    alert("Serverga ulanish xatosi.");
+    alert("Serverga ulanish xatosi: " + err.message);
   }
 }
+
+window.saveSettings = saveSystemSettings;
+window.saveSystemSettings = saveSystemSettings;
 
 function toggleApiKeyVisibility() {
   const input = document.getElementById("inputApiKey");

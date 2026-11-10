@@ -123,7 +123,7 @@ def main():
         if pending:
             print(f"📝 [2/2] Qolgan {len(pending)} ta test Master Solver orqali yechilmoqda...")
             try:
-                cmd = f"PYTHONUNBUFFERED=1 {sys.executable} {os.path.join(ENGINE_V2_DIR, 'master_solver.py')}"
+                cmd = f"PYTHONUNBUFFERED=1 {sys.executable} {os.path.join(ENGINE_V2_DIR, 'master_solver.py')} --user-id {user_id} --password {pwd}"
                 proc = subprocess.Popen(cmd, shell=True)
                 proc.wait()
             except Exception as e:

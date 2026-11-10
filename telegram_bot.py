@@ -474,7 +474,12 @@ def handle_run_tests(chat_id: int):
     def worker():
         try:
             import subprocess
-            cmd = f"PYTHONUNBUFFERED=1 {sys.executable} {os.path.join(ENGINE_V2_DIR, 'master_solver.py')}"
+            profiles = load_profiles()
+            user_prof = get_user_profile(chat_id) or (profiles[0] if profiles else None)
+            args_str = ""
+            if user_prof:
+                args_str = f" --user-id {user_prof['user_id']} --password {user_prof['password']}"
+            cmd = f"PYTHONUNBUFFERED=1 {sys.executable} {os.path.join(ENGINE_V2_DIR, 'master_solver.py')}{args_str}"
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             for line in proc.stdout:
                 line_str = line.strip()
@@ -879,6 +884,10 @@ def setup_bot_on_startup():
 def run_bot():
     print(f"🤖 Master & Student Role Bot ishga tushirilmoqda... Token: {BOT_TOKEN[:10]}...", flush=True)
     threading.Thread(target=setup_bot_on_startup, daemon=True).start()
+    try:
+        requests.post(f"{TELEGRAM_API}/deleteWebhook", timeout=5)
+    except Exception:
+        pass
     offset = 0
     while True:
         try:
