@@ -31,6 +31,17 @@ app.add_middleware(
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+@app.on_event("startup")
+def startup_event():
+    import threading
+    try:
+        from telegram_bot import run_bot
+        t = threading.Thread(target=run_bot, daemon=True)
+        t.start()
+        print("🤖 [STARTUP] Telegram Bot FastAPI bilan birgalikda muvaffaqiyatli ishga tushirildi!", flush=True)
+    except Exception as e:
+        print(f"⚠️ [STARTUP] Telegram botni ishga tushirishda xatolik: {e}", flush=True)
+
 # ---------------------------------------------------------------------------
 # MODELS
 # ---------------------------------------------------------------------------

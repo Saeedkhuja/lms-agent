@@ -843,8 +843,42 @@ def process_update(update: dict):
             handle_start(chat_id)
 
 
+def setup_bot_on_startup():
+    """Bot ishga tushganda menyu va buyruqlarni darhol sozlash"""
+    try:
+        cmd_payload = {
+            "commands": [
+                {"command": "start", "description": "🎛️ Boshqaruv menyusi"},
+                {"command": "dashboard", "description": "🌐 Master Dashboard (Web App)"},
+                {"command": "status", "description": "📊 Jonli darslar monitoringi"},
+                {"command": "breakdown", "description": "📈 Kurs tarkibi va tahlili"},
+                {"command": "screenshot", "description": "📸 Jonli LMS fotosurati"},
+                {"command": "start_agent", "description": "🚀 Agentni ishga tushirish"},
+                {"command": "stop_agent", "description": "🛑 Agentni to'xtatish (Xavfsiz)"},
+                {"command": "force_stop", "description": "⚡ Zudlik bilan to'xtatish"},
+                {"command": "run_lessons", "description": "⚡ Tezkor darslarni yechish"},
+                {"command": "run_tests", "description": "📝 AI test solver (Gemini)"},
+                {"command": "students", "description": "👥 Talabalar ro'yxati"},
+                {"command": "add_student", "description": "➕ Yangi talaba qo'shish"},
+                {"command": "logs", "description": "📋 Konsol loglarini ko'rish"},
+                {"command": "cloud_run", "description": "☁️ GitHub Actions bulutli rejim"},
+                {"command": "settings", "description": "⚙️ Tizim sozlamalari"},
+                {"command": "help", "description": "📖 Qo'llanma va yordam"}
+            ]
+        }
+        requests.post(f"{TELEGRAM_API}/setMyCommands", json=cmd_payload, timeout=8)
+
+        for admin_id in ADMIN_IDS:
+            configure_chat_menu(admin_id)
+
+        print(f"✅ Telegram UI sozlamalari o'rnatildi. Dashboard URL: {DASHBOARD_URL}", flush=True)
+    except Exception as e:
+        print(f"⚠️ Telegram UI sozlashda xatolik: {e}", flush=True)
+
+
 def run_bot():
     print(f"🤖 Master & Student Role Bot ishga tushirilmoqda... Token: {BOT_TOKEN[:10]}...", flush=True)
+    setup_bot_on_startup()
     offset = 0
     while True:
         try:
@@ -864,3 +898,4 @@ def run_bot():
 
 if __name__ == "__main__":
     run_bot()
+
