@@ -59,7 +59,7 @@ if os.path.exists(ENV_FILE):
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "9273042030:AAEnLAZlZtMphXHu4crzNJoGduR-cbm3yEg").strip()
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
-DASHBOARD_URL = (os.environ.get("RENDER_EXTERNAL_URL") or os.environ.get("DASHBOARD_URL", "https://smoking-codes-week-pike.trycloudflare.com")).strip()
+DASHBOARD_URL = (os.environ.get("RENDER_EXTERNAL_URL") or os.environ.get("DASHBOARD_URL", "")).strip()
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "Saeedkhuja/lms-agent").strip()
 
@@ -175,7 +175,7 @@ def answer_callback_query(callback_query_id: str, text: str = ""):
 def configure_chat_menu(chat_id: int):
     """Admin uchun WebApp menyu tugmasini, oddiy user uchun standart menyuni o'rnatish"""
     try:
-        if is_admin(chat_id):
+        if is_admin(chat_id) and DASHBOARD_URL:
             menu_payload = {
                 "chat_id": chat_id,
                 "menu_button": {
