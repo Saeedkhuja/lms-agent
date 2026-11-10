@@ -213,6 +213,38 @@ class LMSDirectClient:
         res = self.session.post(url, data=payload, headers=headers, timeout=10)
         return res.status_code == 200 or res.status_code == 302
 
+    def complete_all_pending_lessons(self) -> Dict[str, int]:
+        """Barcha qolib ketgan video va matn darslarini HTTP orqali birma-bir to'liq topshirish"""
+        units = self.scan_units()
+        pending = [u for u in units if not u["is_finished"]]
+        completed = 0
+        failed = 0
+
+        for u in pending:
+            title = u.get("title", "")
+            if any(k in title for k in ["テスト", "小テスト", "試験", "Test", "Quiz"]):
+                continue
+
+            uid = u.get("uid")
+            if not uid and u.get("link_id"):
+                info = self.get_unit_viewer_info(u["link_id"])
+                uid = info.get("uid") if info else None
+
+            if uid:
+                is_vp = any(k in title for k in ["動画", "ビデオ", "Lecture"])
+                ok = self.complete_unit(uid, study_sec=45, is_vp=is_vp)
+                if ok:
+                    completed += 1
+                    print(f"✅ [HTTP] Dars topshirildi: {title} (UID: {uid})")
+                else:
+                    failed += 1
+            else:
+                failed += 1
+
+        re_units = self.scan_units()
+        rem = sum(1 for u in re_units if not u["is_finished"])
+        return {"completed": completed, "failed": failed, "remaining": rem}
+
 if __name__ == "__main__":
     client = LMSDirectClient("jdu-226516", "55ugtk")
     if client.login():
