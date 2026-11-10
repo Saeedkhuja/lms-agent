@@ -9,8 +9,24 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from collections import deque
 
-from playwright.sync_api import sync_playwright, Page, BrowserContext, Browser, Frame, Dialog
-from google import genai
+try:
+    from playwright.sync_api import sync_playwright, Page, BrowserContext, Browser, Frame, Dialog
+    HAS_PLAYWRIGHT = True
+except Exception:
+    sync_playwright = None
+    Page = Any
+    BrowserContext = Any
+    Browser = Any
+    Frame = Any
+    Dialog = Any
+    HAS_PLAYWRIGHT = False
+
+try:
+    from google import genai
+    HAS_GENAI = True
+except Exception:
+    genai = None
+    HAS_GENAI = False
 
 from config import (
     load_settings,

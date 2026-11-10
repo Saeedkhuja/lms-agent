@@ -878,7 +878,7 @@ def setup_bot_on_startup():
 
 def run_bot():
     print(f"🤖 Master & Student Role Bot ishga tushirilmoqda... Token: {BOT_TOKEN[:10]}...", flush=True)
-    setup_bot_on_startup()
+    threading.Thread(target=setup_bot_on_startup, daemon=True).start()
     offset = 0
     while True:
         try:
@@ -887,13 +887,16 @@ def run_bot():
                 data = r.json()
                 for item in data.get("result", []):
                     offset = item["update_id"] + 1
-                    process_update(item)
+                    try:
+                        process_update(item)
+                    except Exception as err:
+                        print(f"Xabar ishlashda xatolik: {err}", flush=True)
             elif r.status_code == 409:
                 time.sleep(3)
             else:
                 time.sleep(2)
         except Exception:
-            time.sleep(3)
+            time.sleep(2)
 
 
 if __name__ == "__main__":
