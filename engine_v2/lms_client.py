@@ -18,6 +18,7 @@ class LMSDirectClient:
         })
         self.course_url = None
         self.course_id = 953
+        self.course_name = "N3 (2026秋セメスター)"
 
     def _extract_asp_tokens(self, html: str) -> Dict[str, str]:
         tokens = {}
@@ -81,9 +82,8 @@ class LMSDirectClient:
 
         course_href = None
         for m in re.finditer(r'href=[\"\x27](/home/course/default\.aspx\?k=[^\"\x27]+)[\"\x27]', res.text):
-            start = m.start()
-            after = res.text[start: start + 700]
-            if str(self.course_id) in after or self.course_name in after or "N3" in after:
+            window = res.text[m.start(): m.start() + 2000]
+            if f"ProgressRate-{self.course_id}" in window or f"cid={self.course_id}" in window or "N3" in window:
                 course_href = m.group(1).replace("&amp;", "&")
                 break
 
@@ -95,21 +95,25 @@ class LMSDirectClient:
 
         # Check if inner module needs clicking
         if "liChapter" not in res_course.text:
-            m_inner = re.search(r'href=[\"\x27](/home/course/default\.aspx\?k=[^\"\x27]+)[\"\x27]', res_course.text)
-            if m_inner:
-                course_href = m_inner.group(1).replace("&amp;", "&")
-                res_course = self.session.get(f"{BASE_URL}{course_href}", timeout=15)
+            for m in re.finditer(r'href=[\"\x27](/home/course/default\.aspx\?k=[^\"\x27]+)[\"\x27]', res_course.text):
+                window = res_course.text[m.start(): m.start() + 1500]
+                if "N3" in window or str(self.course_id) in window or "秋セメスター" in window:
+                    course_href = m.group(1).replace("&amp;", "&")
+                    res_course = self.session.get(f"{BASE_URL}{course_href}", timeout=15)
+                    break
 
         self.course_url = f"{BASE_URL}{course_href}"
+        self.last_course_html = res_course.text
         print(f"✅ Kurs ochildi! URL: {self.course_url[:65]}...")
         return True
 
     def scan_units(self) -> List[Dict[str, Any]]:
         print("🔍 [HTTP] Barcha darslar skaner qilinmoqda...")
-        res = self.session.get(self.course_url, timeout=15)
+        html = self.last_course_html if hasattr(self, "last_course_html") and self.last_course_html and "liUnitListGroupItem" in self.last_course_html else self.session.get(self.course_url, timeout=15).text
+        self.last_course_html = html
         
         pattern = r'<li[^>]+id=[\"\x27]([^\"]*liUnitListGroupItem[^\"]*)[\"\x27]([^>]*)>(.*?)</li>'
-        items = re.findall(pattern, res.text, re.DOTALL)
+        items = re.findall(pattern, html, re.DOTALL)
 
         units = []
         for li_id, li_attrs, li_content in items:
@@ -139,11 +143,12 @@ class LMSDirectClient:
 
     def get_unit_viewer_info(self, link_id: str) -> Optional[Dict[str, str]]:
         """Trigger unit postback and extract viewer URL and uid in 0.1s"""
-        res_course = self.session.get(self.course_url, timeout=15)
-        tokens = self._extract_asp_tokens(res_course.text)
+        html = self.last_course_html if hasattr(self, "last_course_html") and self.last_course_html and link_id in self.last_course_html else self.session.get(self.course_url, timeout=15).text
+        self.last_course_html = html
+        tokens = self._extract_asp_tokens(html)
         
         # Extract form action
-        m_action = re.search(r'<form[^>]+action=[\"\x27]([^\"]+)[\"\x27]', res_course.text)
+        m_action = re.search(r'<form[^>]+action=[\"\x27]([^\"]+)[\"\x27]', html)
         action = m_action.group(1).replace("&amp;", "&") if m_action else None
         if action and not action.startswith("http"):
             action = urllib.parse.urljoin(self.course_url, action)

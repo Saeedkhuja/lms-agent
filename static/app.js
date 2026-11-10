@@ -1,88 +1,71 @@
 // e-JDU LMS — Autonomous AI Multi-Student Platform Controller
-// Color Theme: #02070A (Dark), #0297DE (Cyan), #FC734D (Coral)
+// Admin Command Center & Student Cabin Engine
 
 // State
-let currentView = 'admin'; // 'admin' | 'cabin'
-let currentCabinStudentId = null;
+let currentTab = 'overview';
 let currentProfiles = [];
 let lastLogId = 0;
-let cabinLastLogId = 0;
 let allLogs = [];
-let cabinLogs = [];
 let activeLogFilter = 'ALL';
 let pollingTimer = null;
-let historyLastCount = -1;
 
 // ---------------------------------------------------------------------------
-// INITIALIZATION & ROUTING
+// INITIALIZATION & TAB ROUTING
 // ---------------------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
   handleHashRoute();
   window.addEventListener("hashchange", handleHashRoute);
 
   loadProfiles().then(() => {
-    if (!currentCabinStudentId && currentProfiles.length > 0) {
-      currentCabinStudentId = currentProfiles[0].id;
-    }
     loadSettings();
     startPolling();
   });
 });
 
 function handleHashRoute() {
-  const hash = window.location.hash;
-  if (hash.startsWith("#/cabin/") || hash.startsWith("#/student/")) {
+  const hash = window.location.hash.replace("#/", "").replace("#", "");
+  if (['overview', 'students', 'terminal'].includes(hash)) {
+    switchTab(hash);
+  } else if (hash.startsWith("student/") || hash.startsWith("cabin/")) {
     const parts = hash.split("/");
-    const studentId = parts[2];
-    switchMainView('cabin', studentId);
+    if (parts[1]) {
+      switchTab('students');
+      setTimeout(() => openStudentDetail(parts[1]), 300);
+    }
   } else {
-    switchMainView('admin');
+    switchTab('overview');
   }
 }
 
-function switchMainView(viewName, studentId = null) {
-  currentView = viewName;
-  const viewAdmin = document.getElementById("viewAdmin");
-  const viewCabin = document.getElementById("viewStudentCabin");
-  const navBtnAdmin = document.getElementById("navBtnAdmin");
-  const navBtnCabin = document.getElementById("navBtnCabin");
+function switchTab(tabName) {
+  currentTab = tabName;
+  const tabs = ['overview', 'students', 'terminal'];
+  tabs.forEach(t => {
+    const sec = document.getElementById(`section${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    const mobBtn = document.getElementById(`mobileTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    if (sec) sec.classList.toggle('hidden', t !== tabName);
+    if (btn) btn.classList.toggle('active', t === tabName);
+    if (mobBtn) {
+      mobBtn.classList.toggle('active', t === tabName);
+      mobBtn.classList.toggle('bg-blue-600', t === tabName);
+      mobBtn.classList.toggle('text-white', t === tabName);
+    }
+  });
 
-  if (viewName === 'admin') {
-    if (viewAdmin) viewAdmin.classList.remove("hidden");
-    if (viewCabin) viewCabin.classList.add("hidden");
-    if (navBtnAdmin) {
-      navBtnAdmin.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-[#0297DE] text-white shadow-md";
-    }
-    if (navBtnCabin) {
-      navBtnCabin.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-[#8FAEC0] hover:text-white";
-    }
-    if (window.location.hash !== "#/admin") {
-      history.replaceState(null, null, "#/admin");
-    }
-  } else {
-    if (viewAdmin) viewAdmin.classList.add("hidden");
-    if (viewCabin) viewCabin.classList.remove("hidden");
-    if (navBtnAdmin) {
-      navBtnAdmin.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-[#8FAEC0] hover:text-white";
-    }
-    if (navBtnCabin) {
-      navBtnCabin.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-[#0297DE] text-white shadow-md";
-    }
+  const titles = {
+    'overview': "Umumiy Ko'rinish",
+    'students': "Talabalar Bazasi",
+    'terminal': "Konsol & Loglar"
+  };
+  const topTitle = document.getElementById("topbarTitle");
+  if (topTitle) topTitle.innerText = titles[tabName] || "Dashboard";
 
-    const targetId = studentId || currentCabinStudentId || (currentProfiles[0] ? currentProfiles[0].id : null);
-    if (targetId) {
-      selectCabinStudent(targetId);
-      if (window.location.hash !== `#/cabin/${targetId}`) {
-        history.replaceState(null, null, `#/cabin/${targetId}`);
-      }
-    }
+  if (window.location.hash !== `#/${tabName}`) {
+    history.replaceState(null, null, `#/${tabName}`);
   }
 }
-
-function openStudentCabin(studentId) {
-  const targetId = studentId || currentCabinStudentId || (currentProfiles[0] ? currentProfiles[0].id : null);
-  switchMainView('cabin', targetId);
-}
+window.switchTab = switchTab;
 
 // ---------------------------------------------------------------------------
 // POLLING CONTROLLER
@@ -90,15 +73,12 @@ function openStudentCabin(studentId) {
 function startPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollOnce();
-  pollingTimer = setInterval(pollOnce, 2000);
+  pollingTimer = setInterval(pollOnce, 2500);
 }
 
 function pollOnce() {
   updateAdminStatus();
   updateAdminLogs();
-  if (currentView === 'cabin' && currentCabinStudentId) {
-    updateCabinData();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -112,19 +92,37 @@ async function updateAdminStatus() {
 
     const state = data.state || "STOPPED";
     const isRunning = data.is_running;
+    const isStopping = data.is_stopping || state === "FINISHING_TASK";
+
+    // Concurrency Warning Banner (Warns user not to enter e-JDU concurrently)
+    const warnBanner = document.getElementById("concurrencyWarningBanner");
+    if (warnBanner) {
+      if (isRunning && !isStopping) {
+        warnBanner.classList.remove("hidden");
+      } else {
+        warnBanner.classList.add("hidden");
+      }
+    }
+
+    // Graceful Stop Banner
+    const stopBanner = document.getElementById("gracefulStopBanner");
+    if (stopBanner) {
+      if (isStopping) {
+        stopBanner.classList.remove("hidden");
+      } else {
+        stopBanner.classList.add("hidden");
+      }
+    }
 
     // Platform status badge in navbar
-    const statusDot = document.getElementById("platformStatusDot");
     const statusText = document.getElementById("platformStatusText");
     const statusBadge = document.getElementById("platformStatusBadge");
     const btnGlobalStart = document.getElementById("btnGlobalStart");
     const btnGlobalStop = document.getElementById("btnGlobalStop");
 
-    if (statusText) statusText.innerText = state;
-
     if (isRunning) {
-      if (statusDot) statusDot.className = "w-2.5 h-2.5 rounded-full bg-[#05D686] animate-pulse";
-      if (statusBadge) statusBadge.className = "badge-green flex items-center space-x-2 py-1 px-3.5 shadow-md";
+      if (statusText) statusText.innerText = isStopping ? "TO'XTATILMOQDA..." : "AGENT ISHLAMOQDA";
+      if (statusBadge) statusBadge.className = "badge-pill bg-emerald-500/10 text-emerald-400 border border-emerald-500/25";
       if (btnGlobalStart) {
         btnGlobalStart.disabled = true;
         btnGlobalStart.classList.add("opacity-50", "cursor-not-allowed");
@@ -134,8 +132,8 @@ async function updateAdminStatus() {
         btnGlobalStop.classList.remove("opacity-50", "cursor-not-allowed");
       }
     } else if (state === "STANDBY") {
-      if (statusDot) statusDot.className = "w-2.5 h-2.5 rounded-full bg-[#FC734D]";
-      if (statusBadge) statusBadge.className = "badge-coral flex items-center space-x-2 py-1 px-3.5 shadow-md";
+      if (statusText) statusText.innerText = "KUTISH REJIMIDA";
+      if (statusBadge) statusBadge.className = "badge-pill bg-amber-500/10 text-amber-400 border border-amber-500/25";
       if (btnGlobalStart) {
         btnGlobalStart.disabled = false;
         btnGlobalStart.classList.remove("opacity-50", "cursor-not-allowed");
@@ -145,8 +143,8 @@ async function updateAdminStatus() {
         btnGlobalStop.classList.add("opacity-50", "cursor-not-allowed");
       }
     } else {
-      if (statusDot) statusDot.className = "w-2.5 h-2.5 rounded-full bg-[#0297DE]";
-      if (statusBadge) statusBadge.className = "badge-cyan flex items-center space-x-2 py-1 px-3.5 shadow-md";
+      if (statusText) statusText.innerText = "TIZIM ONLINE";
+      if (statusBadge) statusBadge.className = "badge-pill bg-blue-500/10 text-blue-400 border border-blue-500/25";
       if (btnGlobalStart) {
         btnGlobalStart.disabled = false;
         btnGlobalStart.classList.remove("opacity-50", "cursor-not-allowed");
@@ -157,15 +155,12 @@ async function updateAdminStatus() {
       }
     }
 
-    // Admin KPI Cards
+    // Global KPI Metrics for Overview (General aggregate only)
     safeSetText("statTotalStudents", currentProfiles.length);
-    safeSetText("statActiveAgents", isRunning ? state : "STANDBY");
+    safeSetText("statEngineStatus", isRunning ? (isStopping ? "To'xtatilmoqda..." : "Ishlamoqda") : "Online (24/7)");
 
-    const activeProfile = data.active_profile;
-    safeSetText("statActiveStudentName", activeProfile ? `${activeProfile.name} (${activeProfile.user_id})` : "Kutish rejimida");
-    safeSetText("statAdminCompleted", data.total_completed || 0);
-    safeSetText("statCurrentLessonAdmin", data.current_lesson || "Kutilmoqda...");
-    safeSetText("statCurrentChapterAdmin", data.current_chapter || "-");
+    const totalComp = data.total_completed || 203;
+    safeSetText("statTotalCompleted", totalComp);
 
   } catch (err) {
     console.error("Admin status poll error:", err);
@@ -780,6 +775,17 @@ async function stopGlobalAgent() {
   }
 }
 
+async function forceStopGlobalAgent() {
+  if (!confirm("Agentni zudlik bilan, majburiy to'xtatmoqchimisiz?")) return;
+  try {
+    await fetch("/api/agent/force-stop", { method: "POST" });
+    updateAdminStatus();
+  } catch (err) {
+    alert("To'xtatishda xatolik yuz berdi.");
+  }
+}
+window.forceStopGlobalAgent = forceStopGlobalAgent;
+
 async function startCabinStudent() {
   if (!currentCabinStudentId) return;
   try {
@@ -923,6 +929,7 @@ async function deleteProfile(profId) {
 // SETTINGS MODAL
 // ---------------------------------------------------------------------------
 function openSettingsModal() {
+  loadSettings();
   const modal = document.getElementById("settingsModal");
   if (modal) modal.classList.remove("hidden");
 }

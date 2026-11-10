@@ -141,9 +141,14 @@ def start_agent(req: StartAgentRequest):
     return {"status": "started", "message": "Agent muvaffaqiyatli ishga tushirildi"}
 
 @app.post("/api/agent/stop")
-def stop_agent():
-    agent_runner.stop()
-    return {"status": "stopped", "message": "Agent to'xtatildi"}
+def stop_agent(force: bool = False):
+    agent_runner.stop(force=force)
+    return {"status": "stopping", "message": "Xavfsiz to'xtatish faollashtirildi"}
+
+@app.post("/api/agent/force-stop")
+def force_stop_agent():
+    agent_runner.stop(force=True)
+    return {"status": "stopped", "message": "Agent zudlik bilan to'xtatildi"}
 
 @app.get("/api/logs")
 def get_logs(since_id: int = 0):

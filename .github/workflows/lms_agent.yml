@@ -14,10 +14,7 @@ on:
       auto_retrigger:
         description: 'Tugagach keyingi runni avtomatik ishga tushirish (true/false)'
         required: false
-        default: 'true'
-  schedule:
-    # Xavfsizlik zanjiri: har 5 soatda avtomatik tekshirib yangi siklni yurgizish
-    - cron: '0 */5 * * *'
+        default: 'false'
 
 permissions:
   contents: write
@@ -72,7 +69,7 @@ jobs:
           git push origin main || echo "Git push amalga oshmadi yoki o'zgarish yo'q"
 
       - name: 🔄 Keyingi 6 Soatlik Runni Avtomatik Ishga Tushirish (Auto-Chaining)
-        if: always() && (github.event.inputs.auto_retrigger == 'true' || github.event_name == 'schedule')
+        if: success() && github.event.inputs.auto_retrigger == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

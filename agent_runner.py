@@ -444,17 +444,21 @@ FAQAT quyidagi JSON formatida javob bering:
                 page.goto(f"{BASE_URL}/home/default.aspx", timeout=30000, wait_until="load")
                 page.wait_for_timeout(1500)
 
-                course_card = page.locator(f'text="{course_name}"').first
-                if not course_card.is_visible():
-                    course_card = page.locator('.card:has-text("N3"), a:has-text("N3")').first
-
-                if not course_card.is_visible():
+                found = page.evaluate('''() => {
+                    const links = Array.from(document.querySelectorAll('a[href*="/home/course/default.aspx"]'));
+                    const n3 = links.find(a => {
+                        const txt = (a.innerText || "") + " " + (a.closest('.card, .list-group-item, li, div')?.innerText || "");
+                        return txt.includes("N3") || a.href.includes("953") || txt.includes("953");
+                    }) || links[0];
+                    if (n3) { n3.click(); return true; }
+                    return false;
+                }''')
+                if not found:
                     self.log("ERROR", f"Kurs kartasi topilmadi: {course_name}")
                     return False
 
-                course_card.click()
                 page.wait_for_load_state("load", timeout=20000)
-                page.wait_for_timeout(1500)
+                page.wait_for_timeout(2500)
                 self.capture_screenshot(page)
 
             if page.locator('li[id*="liChapter"]').count() == 0:
@@ -541,11 +545,13 @@ FAQAT quyidagi JSON formatida javob bering:
                     const pie = u.querySelector('.pie-list');
                     const progress = pie ? pie.getAttribute('data-kd-progress') : '0';
                     const hasCheck = !!u.querySelector('.bi-check, .bi-check-circle, .bi-check-circle-fill, .bi-check2');
+                    const uidMatch = (u.outerHTML || '').match(/uid=(\d+)/);
                     
                     results.push({
                         chapter: chTitle,
                         title: title,
                         unitId: u.id,
+                        uid: uidMatch ? uidMatch[1] : null,
                         linkId: link ? link.id : null,
                         isFinished: isFinished || progress === '100' || hasCheck
                     });
@@ -726,20 +732,38 @@ FAQAT quyidagi JSON formatida javob bering:
 
         contents_frame = page.frame(name="contents")
         ctrl_frame = page.frame(name="ctrl")
-        target_frames = [contents_frame, page.main_frame] if contents_frame else [page.main_frame]
         active_video_frame = None
 
-        for fr in target_frames:
-            if fr and fr.evaluate('() => !!document.querySelector("video")'):
-                active_video_frame = fr
+        # Search for video across all frames with up to 4 retries (8 seconds)
+        for _ in range(4):
+            candidate_frames = [contents_frame, page.main_frame] if contents_frame else []
+            for f in page.frames:
+                if f not in candidate_frames:
+                    candidate_frames.append(f)
+
+            for fr in candidate_frames:
+                try:
+                    if fr and fr.evaluate('() => !!document.querySelector("video")'):
+                        active_video_frame = fr
+                        break
+                except Exception:
+                    pass
+            if active_video_frame:
                 break
+            page.wait_for_timeout(2000)
 
         if active_video_frame:
-            video_meta = active_video_frame.evaluate('''() => {
-                const v = document.querySelector("video");
-                return v ? { duration: v.duration || 0, currentTime: v.currentTime || 0 } : null;
-            }''')
-            duration = video_meta.get("duration", 0) if video_meta else 0
+            # Wait for video duration to load
+            for _ in range(5):
+                video_meta = active_video_frame.evaluate('''() => {
+                    const v = document.querySelector("video");
+                    return v ? { duration: v.duration || 0, currentTime: v.currentTime || 0 } : null;
+                }''')
+                duration = video_meta.get("duration", 0) if video_meta else 0
+                if duration and duration > 0:
+                    break
+                page.wait_for_timeout(1000)
+
             dur_str = time.strftime('%M:%S', time.gmtime(duration)) if duration > 0 else "Noma'lum"
             self.log("INFO", f"📹 Video darsi: Davomiyligi {dur_str} (Tezlik: {speed}x)")
 
@@ -748,7 +772,7 @@ FAQAT quyidagi JSON formatida javob bering:
                 if (v) {{
                     v.playbackRate = {speed};
                     v.muted = true;
-                    v.play();
+                    v.play().catch(() => {{}});
                 }}
             }}''')
 
@@ -778,13 +802,19 @@ FAQAT quyidagi JSON formatida javob bering:
                     break
                 time.sleep(3)
         else:
-            self.log("INFO", f"📖 Slayd/Matn o'rganilmoqda ({doc_time} soniya kutish)...")
+            is_video_lesson = any(k in unit['title'] for k in ["動画", "ビデオ", "Lecture", "会話", "文法"])
+            effective_time = max(90, int(480 / max(0.5, speed))) if is_video_lesson else doc_time
+            if is_video_lesson:
+                self.log("INFO", f"📹 Video darsi (Standart rejim): Davomiyligi 2x tezlik nisbatida {effective_time}s kutilmoqda...")
+            else:
+                self.log("INFO", f"📖 Slayd/Matn darsi o'rganilmoqda ({effective_time} soniya kutish)...")
             waited = 0
-            while waited < doc_time and not self.stop_event.is_set():
+            while waited < effective_time and not self.stop_event.is_set():
                 time.sleep(5)
                 waited += 5
-                self.log("INFO", f"⌛ O'rganish: {waited}/{doc_time}s")
-                self.capture_screenshot(page)
+                if waited % 15 == 0 or waited >= effective_time:
+                    self.log("INFO", f"⌛ O'rganish jarayoni: {waited}/{effective_time}s")
+                    self.capture_screenshot(page)
 
         # Click finish
         clicked = False
@@ -811,121 +841,21 @@ FAQAT quyidagi JSON formatida javob bering:
 
     def _handle_quiz(self, page: Page, unit: Dict[str, Any], gemini_client, model_name: str, custom_prompt: str) -> bool:
         self.state = "SOLVING_QUIZ"
-        self.log("INFO", f"📝 Test darsi AI bilan yechilmoqda: '{unit['title']}'...")
-        page.wait_for_timeout(2000)
-
-        for step in range(1, 45):
-            if self.stop_event.is_set():
-                return False
-
-            if page.locator('text=受講結果, text=テスト結果, text=テスト完了, text=お疲れさまでした').count() > 0:
-                self.log("INFO", "🎉 Test to'liq yakunlandi!")
-                break
-
-            choices = page.evaluate('''() => {
-                const radios = Array.from(document.querySelectorAll('#divSingleSelection label, label.answer-box'));
-                return radios.map((lbl, idx) => ({ index: idx, id: lbl.id, text: lbl.innerText.trim() })).filter(c => c.text);
-            }''')
-
-            if not choices:
-                next_b = page.locator('#ctl00_cplPageContent_lbnNext, a:has-text("次へ")').first
-                finish_b = page.locator('#ctl00_cplPageContent_lbnFinish, a:has-text("終了"), button:has-text("終了")').first
-                if next_b.is_visible():
-                    next_b.click()
-                    page.wait_for_load_state("load", timeout=15000)
-                    page.wait_for_timeout(1500)
-                    continue
-                elif finish_b.is_visible():
-                    finish_b.click()
-                    page.wait_for_load_state("load", timeout=15000)
-                    page.wait_for_timeout(1500)
-                    continue
-                else:
-                    break
-
-            # Aniq savol matnini va formatlashni (tagiga chizilgan, qalin so'zlar) olish
-            q_text = page.evaluate('''() => {
-                const qContainers = [
-                    document.querySelector('#ctl00_cplPageContent_lblQuestion'),
-                    document.querySelector('#divQuestionArea'),
-                    document.querySelector('#divQuestion'),
-                    document.querySelector('.question-text'),
-                    document.querySelector('.question'),
-                    document.querySelector('#divContent'),
-                    document.querySelector('#ctl00_cplPageContent_pnlContent')
-                ].filter(Boolean);
-
-                let target = qContainers[0] || document.body;
-                let clone = target.cloneNode(true);
-
-                // Javob variantlari va tugmalarni savoldan olib tashlash
-                const removeSelectors = [
-                    '#divSingleSelection', '#divMultipleSelection', '.answer-box',
-                    '#ctl00_cplPageContent_lbnGrading', '#ctl00_cplPageContent_lbnNext',
-                    '#ctl00_cplPageContent_lbnFinish', 'button', 'script', 'style'
-                ];
-                removeSelectors.forEach(sel => {
-                    clone.querySelectorAll(sel).forEach(el => el.remove());
-                });
-
-                // Tagiga chizilgan (u) yoki qalin (b) so'zlarni 【...】 bilan ajratish
-                clone.querySelectorAll('u, ins, span[style*="underline"]').forEach(el => {
-                    el.outerHTML = `【${el.innerText.trim()}】`;
-                });
-                clone.querySelectorAll('b, strong').forEach(el => {
-                    el.outerHTML = `【${el.innerText.trim()}】`;
-                });
-
-                return clone.innerText.trim();
-            }''')
-
-            if not q_text or len(q_text) < 5:
-                q_text = page.inner_text("body")
-
-            # Savol skrinshotini olish (Multimodal AI ko'rishi uchun)
-            shot_bytes = None
-            try:
-                shot_bytes = page.screenshot(type="jpeg", quality=80)
-            except Exception:
-                pass
-
-            self.capture_screenshot(page)
-
-            best_idx = self._solve_quiz_with_ai(gemini_client, model_name, q_text, choices, custom_prompt, shot_bytes)
-            page.locator(f"#{choices[best_idx]['id']}").click()
-            page.wait_for_timeout(600)
-
-            grading = page.locator('#ctl00_cplPageContent_lbnGrading, a:has-text("採点")').first
-            if grading.is_visible():
-                grading.click()
-                page.wait_for_load_state("load", timeout=15000)
-                page.wait_for_timeout(1500)
-                self.capture_screenshot(page)
-
-            next_b = page.locator('#ctl00_cplPageContent_lbnNext, a:has-text("次へ")').first
-            finish_b = page.locator('#ctl00_cplPageContent_lbnFinish, a:has-text("終了"), button:has-text("終了")').first
-
-            if next_b.is_visible():
-                next_b.click()
-                page.wait_for_load_state("load", timeout=15000)
-                page.wait_for_timeout(1500)
-            elif finish_b.is_visible():
-                finish_b.click()
-                page.wait_for_load_state("load", timeout=15000)
-                page.wait_for_timeout(1500)
-
-        if "/home/course/default.aspx" not in page.url:
-            close_b = page.locator('a:has-text("閉じる"), button:has-text("閉じる"), a:has-text("戻る")').first
-            if close_b.is_visible():
-                close_b.click()
-                page.wait_for_load_state("load", timeout=15000)
-                page.wait_for_timeout(1500)
-
-        # Ensure all result modals (#test-log-detail) are dismissed
-        self._dismiss_all_modals(page)
-
-        self.log("INFO", f"✅ Test muvaffaqiyatli topshirildi: '{unit['title']}'")
-        return True
+        self.log("INFO", f"📝 Test darsi AI (Gemini) bilan yechilmoqda: '{unit['title']}'...")
+        try:
+            from engine_v2.master_solver import solve_test_unit
+            u_id = self.active_profile.get("user_id", "jdu-226516") if self.active_profile else "jdu-226516"
+            pwd = self.active_profile.get("password", "55ugtk") if self.active_profile else "55ugtk"
+            ok = solve_test_unit(page, unit, user_id=u_id, password=pwd)
+            self._dismiss_all_modals(page)
+            if ok:
+                self.log("INFO", f"✅ Test muvaffaqiyatli topshirildi: '{unit['title']}'")
+            else:
+                self.log("WARN", f"⚠️ Test to'liq topshirilmadi: '{unit['title']}'")
+            return ok
+        except Exception as e:
+            self.log("ERROR", f"Test topshirishda xatolik: {e}")
+            return False
 
 
 # Global runner instance

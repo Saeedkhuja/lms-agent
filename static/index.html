@@ -266,6 +266,34 @@
            ================================================================ -->
       <div id="sectionOverview" class="space-y-6">
 
+        <!-- CONCURRENCY WARNING BANNER (Shown when agent is running) -->
+        <div id="concurrencyWarningBanner" class="hidden p-4 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-pulse">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg shrink-0">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div>
+              <div class="font-bold text-amber-200 text-sm">⚠️ DIQQAT: Agent e-JDU tizimida darslarni ishlamoqda!</div>
+              <div class="text-[11px] text-amber-300/80 mt-0.5">Iltimos, sessiya uzilishi va darslar saqlanmay qolishining oldini olish uchun ayni paytda shaxsiy brauzeringizdan platformaga kirmang.</div>
+            </div>
+          </div>
+          <span class="badge-pill bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0 self-start sm:self-auto">AGENT ISHLAMOQDA</span>
+        </div>
+
+        <!-- GRACEFUL STOP BANNER (Shown when graceful stop is active) -->
+        <div id="gracefulStopBanner" class="hidden p-4 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-lg shrink-0 animate-spin">
+              <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <div>
+              <div class="font-bold text-indigo-200 text-sm">⏳ XAVFSIZ TO'XTATISH (Graceful Stop) JARAYONDA...</div>
+              <div class="text-[11px] text-indigo-300/80 mt-0.5">Agent hozirgi darsini oxirigacha yakunlab, natijasini saqlagach, avtomatik to'xtaydi (resurslar tejaladi).</div>
+            </div>
+          </div>
+          <button onclick="forceStopGlobalAgent()" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shrink-0 self-start sm:self-auto">Zudlik bilan to'xtatish</button>
+        </div>
+
         <!-- 4 KPI Metrics Row -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
           
